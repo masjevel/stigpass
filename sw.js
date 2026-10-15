@@ -1,7 +1,7 @@
-// Stigpass offline: keeps the app files on the phone. Pass data is cached by Firebase itself.
+// Stigpass offline: keeps the app files on the phone. Your data lives in the browser's storage.
 // Bump VERSION when you upload new app files, so phones fetch them.
-const VERSION = 'stigpass-1';
-const FILES = ['./', './index.html', './config.js', './firebase.js', './manifest.webmanifest',
+const VERSION = 'stigpass-lokal-1';
+const FILES = ['./', './index.html', './manifest.webmanifest',
   './icons/icon-192.png', './icons/icon-512.png', './icons/apple-touch-icon.png',
   './fonts/barlow-latin-400-normal.woff2', './fonts/barlow-latin-500-normal.woff2', './fonts/barlow-latin-600-normal.woff2',
   './fonts/barlow-latin-700-normal.woff2', './fonts/barlow-latin-800-normal.woff2',
@@ -16,7 +16,7 @@ self.addEventListener('activate', e => {
 self.addEventListener('fetch', e => {
   const req = e.request, url = new URL(req.url);
   if (req.method !== 'GET' || url.origin !== self.location.origin) return;
-  const fresh = req.mode === 'navigate' || url.pathname.endsWith('.html') || url.pathname.endsWith('/config.js');
+  const fresh = req.mode === 'navigate' || url.pathname.endsWith('.html') ;
   if (fresh){
     // Network first, so changes on GitHub show up; the saved copy is used without coverage.
     e.respondWith(fetch(req).then(res => { const copy = res.clone(); caches.open(VERSION).then(c => c.put(req, copy)); return res; })

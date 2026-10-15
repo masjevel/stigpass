@@ -28,8 +28,6 @@ body{margin:0;font:14px system-ui,sans-serif}
 img{max-width:100%}
 [hidden]{display:none!important}
 </style>
-<script src="config.js"></script>
-<script src="firebase.js"></script>
 </head>
 <body>
 <style>
@@ -381,7 +379,7 @@ textarea.field{resize:vertical;min-height:80px}
     <span class="spacer"></span>
     <span class="sync" id="sync"></span>
     <button class="icon-btn" id="theme-btn" data-act="theme" aria-label="Byt läge"></button>
-    <button class="icon-btn" id="acct-btn" data-act="account" aria-label="Konto" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="8" r="4"/><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6"/></svg></button>
+    <button class="icon-btn" id="acct-btn" data-act="account" aria-label="Meny" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"/></svg></button>
   </header>
   <div id="banner"></div>
   <main id="view"></main>
@@ -724,7 +722,7 @@ const S = {
   loaded:{drills:false, passes:false, routes:false, sketches:false},
   filter:{q:'', cat:'', level:'', max:0},
   routeId:null, poiKind:null, movePoi:null, gpxTarget:null, routeProj:null, confirm:null,
-  sheet:null, readOnly:false, db:null, pendingRender:false, user:null, authReady:false, authMsg:'', denied:false, cfgMissing:false
+  sheet:null, readOnly:false, db:null, pendingRender:false, noStore:false
 };
 let mode = 'auto';
 try { mode = localStorage.getItem('stigpass-mode') || 'auto'; } catch {}
@@ -744,11 +742,9 @@ function remove(col, id){
   try { S.db.collection(col).doc(id).delete().catch(writeErr); } catch (e){ writeErr(e); }
 }
 function writeErr(e){
-  const code = String(e && e.code || '');
-  if (code.includes('permission-denied')) toast('Ditt konto har inte behörighet att spara här.');
-  else if (code.includes('resource-exhausted')) toast('Gratiskvoten i Firebase är slut för i dag. Försök igen i morgon.');
-  else if (code.includes('invalid-argument')) toast('Det gick inte att spara. Skissen eller banan kan vara för stor.');
-  else toast('Kunde inte spara. Kontrollera nätet och försök igen.');
+  const name = String(e && (e.name || e.code) || '');
+  if (name.includes('Quota')) toast('Telefonens lagring är full. Ta bort gamla pass eller skisser och försök igen.');
+  else toast('Kunde inte spara. Försök igen.');
   console.warn(e);
 }
 
@@ -804,15 +800,18 @@ function toast(msg, label, fn){
 }
 
 /* ---------- render ---------- */
-function renderBanner(){ $('#banner').innerHTML = ''; }
+function renderBanner(){
+  const b = $('#banner'); if (!b) return;
+  if (S.noStore) b.innerHTML = '<p class="banner">Webbläsaren låter inte appen spara här, till exempel i privat läge. Det du gör försvinner när du stänger sidan.</p>';
+  else if (S.db && Object.values(S.loaded).every(Boolean) && backupDue()) b.innerHTML = `<p class="banner">${lastBackup() ? 'Det är över en månad sedan du sparade en säkerhetskopia.' : 'Din data finns bara i den här enheten. Spara en säkerhetskopia så att inget försvinner.'} <button class="linkbtn" data-act="exportData">Spara nu</button></p>`;
+  else b.innerHTML = '';
+}
 function render(){
   S.pendingRender = false;
-  const inApp = !!(S.user && S.db && !S.denied);
-  $('#dock').hidden = !inApp; $('#acct-btn').hidden = !S.user;
-  if (!inApp){
-    $('#view').innerHTML = loginHTML(); $('#palette').hidden = true; $('#app').classList.remove('with-palette');
-    $('#sync').textContent = ''; return;
-  }
+  const inApp = !!S.db;
+  $('#dock').hidden = !inApp; $('#acct-btn').hidden = !inApp;
+  if (!inApp){ $('#view').innerHTML = '<section class="login"><p class="hint">Startar…</p></section>'; $('#palette').hidden = true; return; }
+  renderBanner();
   document.querySelectorAll('.tab').forEach(t => t.toggleAttribute('aria-current', false));
   const cur = document.querySelector(`.tab[data-tab="${S.tab}"]`); if (cur) cur.setAttribute('aria-current', 'page');
   const v = $('#view');
@@ -1078,7 +1077,7 @@ function sheetBody(){
   if (sh.kind === 'pickDrill') return pickDrillSheet();
   if (sh.kind === 'pickPass') return pickPassSheet();
   if (sh.kind === 'share') return shareSheet();
-  if (sh.kind === 'account') return S.user ? accountHTML() : null;
+  if (sh.kind === 'account') return accountHTML();
   if (sh.kind === 'privacy') return privacyHTML();
   if (sh.kind === 'image') return `<header class="sh-head"><h2>Ruttbild</h2><button class="icon-btn" data-act="closeSheet" aria-label="Stäng">✕</button></header>
     <div class="imgcard"><img src="${sh.url}" alt="${esc(sh.label)}"></div><p class="hint">Håll fingret på bilden för att spara eller dela den.</p>`;
@@ -2033,213 +2032,121 @@ window.addEventListener('pagehide', () => { flushPass(); flushRoute(); });
 document.addEventListener('visibilitychange', () => { if (document.hidden){ flushPass(); flushRoute(); } });
 
 applyMode();
-/* ---------- Firebase: login, data per account, import/export, delete account ---------- */
-const CFG = window.STIGPASS_CONFIG || {};
+/* ---------- Local storage: everything stays in this browser (IndexedDB) ---------- */
 const COLS = ['drills','passes','routes','sketches'];
-let FBX = null, unsubs = [];
+const LS_BACKUP = 'stigpass-lastbackup';
+let IDB = null;
 
-function encodeDoc(col, doc){
-  const d = JSON.parse(JSON.stringify(doc));
-  // Firestore can't store arrays inside arrays, so route points are kept as one flat list
-  if (col === 'routes' && Array.isArray(d.pts)){ d.ptsF = d.pts.flatMap(p => [p[0], p[1], p[2] == null ? null : p[2]]); delete d.pts; }
-  return d;
+function idbOpen(){
+  return new Promise((res, rej) => {
+    let r; try { r = indexedDB.open('stigpass', 1); } catch (e){ rej(e); return; }
+    r.onupgradeneeded = () => { const d = r.result; COLS.forEach(c => { if (!d.objectStoreNames.contains(c)) d.createObjectStore(c); }); };
+    r.onsuccess = () => res(r.result);
+    r.onerror = () => rej(r.error);
+    r.onblocked = () => rej(new Error('blocked'));
+  });
 }
-function decodeDoc(col, d){
-  if (col === 'routes' && Array.isArray(d.ptsF)){
-    const pts = []; for (let i = 0; i + 2 < d.ptsF.length; i += 3) pts.push([d.ptsF[i], d.ptsF[i+1], d.ptsF[i+2]]);
-    d = {...d, pts}; delete d.ptsF;
-  }
-  return d;
+function idbReq(col, mode, fn){
+  return new Promise((res, rej) => {
+    const tx = IDB.transaction(col, mode), st = tx.objectStore(col), rq = fn(st);
+    tx.oncomplete = () => res(rq && rq.result); tx.onerror = () => rej(tx.error); tx.onabort = () => rej(tx.error);
+  });
 }
-function fsAdapter(fs, uid){
+function localAdapter(){
   return {
     collection(col){
-      const ref = FB.collection(fs, 'users', uid, col);
       return {
         onSnapshot(next, err){
-          return FB.onSnapshot(ref, snap => next({docs: snap.docs.map(d => ({id:d.id, data:() => decodeDoc(col, d.data())}))}), err);
+          const docs = [];
+          const tx = IDB.transaction(col, 'readonly'), cur = tx.objectStore(col).openCursor();
+          cur.onsuccess = () => { const c = cur.result; if (c){ const v = c.value, k = String(c.key); docs.push({id:k, data:() => v}); c.continue(); } };
+          tx.oncomplete = () => next({docs});
+          tx.onerror = () => err && err(tx.error);
+          return () => {};
         },
         doc(id){
-          const dref = FB.doc(fs, 'users', uid, col, id);
-          return { set: data => FB.setDoc(dref, encodeDoc(col, data)), delete: () => FB.deleteDoc(dref) };
+          return {
+            set: data => idbReq(col, 'readwrite', st => st.put(JSON.parse(JSON.stringify(data)), id)),
+            delete: () => idbReq(col, 'readwrite', st => st.delete(id))
+          };
         }
       };
     }
   };
 }
-function bootFirebase(){
-  const c = CFG.firebase || {};
-  if (!window.FB || !c.apiKey || !c.projectId){ S.cfgMissing = true; S.authReady = true; render(); return; }
-  try {
-    const app = FB.initializeApp(c);
-    const auth = FB.getAuth(app); auth.languageCode = 'sv';
-    let fs;
-    try { fs = FB.initializeFirestore(app, {localCache: FB.persistentLocalCache({tabManager: FB.persistentMultipleTabManager()})}); }
-    catch { fs = FB.initializeFirestore(app, {}); }
-    if (CFG.emulator){ FB.connectAuthEmulator(auth, 'http://127.0.0.1:9099', {disableWarnings:true}); FB.connectFirestoreEmulator(fs, '127.0.0.1', 8080); }
-    FBX = {app, auth, fs};
-    FB.onAuthStateChanged(auth, u => onUser(u));
-  } catch (e){ console.error(e); S.cfgMissing = true; S.cfgError = true; S.authReady = true; render(); }
-}
-function stopData(){ unsubs.forEach(u => { try { u(); } catch {} }); unsubs = []; S.db = null; }
-function resetData(){
-  S.drills = {}; S.passes = {}; S.routes = {}; S.sketches = {};
-  for (const k in S.loaded) S.loaded[k] = false;
-  S.edit = null; S.sel = null; S.routeId = null; S.denied = false; S.tab = 'pass';
-  if (S.sheet){ S.sheet = null; renderSheet(); }
-}
-function onUser(u){
-  stopData(); resetData();
-  S.authReady = true;
-  if (!u){ S.user = null; render(); return; }
-  S.user = {uid:u.uid, email:u.email || '', name:u.displayName || '', password:u.providerData.some(p => p.providerId === 'password'), verified:!!u.emailVerified};
-  S.authMsg = '';
-  if (S.user.password && !u.emailVerified){ render(); return; }
-  startData();
-}
-function startData(){
-  S.db = fsAdapter(FBX.fs, S.user.uid);
+/* Fallback when the browser refuses storage (private mode): the app works, nothing is kept. */
+const memAdapter = () => ({ collection: () => ({ onSnapshot(next){ setTimeout(() => next({docs:[]}), 0); return () => {}; }, doc: () => ({ set: async () => {}, delete: async () => {} }) }) });
+
+async function bootLocal(){
+  try { IDB = await idbOpen(); S.db = localAdapter(); }
+  catch (e){ console.warn(e); S.db = memAdapter(); S.noStore = true; }
+  try { if (navigator.storage && navigator.storage.persist) navigator.storage.persist(); } catch {}
   for (const col of COLS){
-    unsubs.push(S.db.collection(col).onSnapshot(snap => {
+    S.db.collection(col).onSnapshot(snap => {
       const m = {}; snap.docs.forEach(d => { m[d.id] = {...d.data(), id:d.id}; });
       S[col] = m; S.loaded[col] = true; onData(col);
-    }, err => {
-      console.warn(col, err);
-      if (err && err.code === 'permission-denied'){ S.denied = true; stopData(); }
-      S.loaded[col] = true; render();
-    }));
+    }, err => { console.warn(col, err); S.loaded[col] = true; render(); });
   }
-  render();
+  renderBanner(); render();
 }
-const authErr = e => {
-  const c = (e && e.code) || '';
-  if (c.includes('popup-closed') || c.includes('cancelled-popup')) return '';
-  if (c.includes('popup-blocked')) return 'Webbläsaren stoppade inloggningsfönstret. Tillåt popup-fönster för sidan och försök igen.';
-  if (c.includes('unauthorized-domain')) return 'Den här webbadressen är inte godkänd i Firebase. Lägg till den under Authentication → Settings → Authorized domains.';
-  if (c.includes('invalid-credential') || c.includes('wrong-password') || c.includes('user-not-found')) return 'Fel e-post eller lösenord.';
-  if (c.includes('email-already-in-use')) return 'Det finns redan ett konto med den e-postadressen. Logga in i stället.';
-  if (c.includes('weak-password')) return 'Lösenordet måste ha minst 6 tecken.';
-  if (c.includes('invalid-email')) return 'E-postadressen ser inte rätt ut.';
-  if (c.includes('operation-not-allowed')) return 'Den inloggningsmetoden är inte påslagen i Firebase.';
-  if (c.includes('network')) return 'Ingen kontakt med nätet. Försök igen när du har täckning.';
-  if (c.includes('too-many-requests')) return 'För många försök. Vänta en stund och försök igen.';
-  return 'Inloggningen misslyckades. Försök igen.';
-};
-function setAuthMsg(m){ S.authMsg = m; const el = $('#auth-msg'); if (el){ el.textContent = m; el.hidden = !m; } else render(); }
-
-function loginHTML(){
-  if (!S.authReady) return `<section class="login"><p class="hint">Startar…</p></section>`;
-  const hero = `<div class="login-hero"><div class="login-bars" aria-hidden="true"><i class="t-samling" style="height:30%"></i><i class="t-uppvarmning" style="height:55%"></i><i class="t-teknik" style="height:70%"></i><i class="t-lek" style="height:50%"></i><i class="t-loop" style="height:100%"></i><i class="t-stafett" style="height:85%"></i><i class="t-avslutning" style="height:30%"></i></div>
-    <h1>Stigpass</h1><p>Planera träningspass, spara övningar och banor, och dela dagens pass med ledarna.</p></div>`;
-  if (S.cfgMissing) return `<section class="login">${hero}<p class="banner">${S.cfgError ? 'Inställningarna i config.js går inte att läsa. Kontrollera att du klistrat in värdena från Firebase rätt.' : 'Appen är inte kopplad till Firebase ännu. Fyll i config.js enligt guiden.'}</p></section>`;
-  if (S.user && S.user.password && !S.user.verified) return `<section class="login">${hero}
-    <p class="banner">Vi har skickat ett mejl till <b>${esc(S.user.email)}</b>. Klicka på länken i mejlet och tryck sedan på knappen här.</p>
-    <button class="btn primary" data-act="checkVerified">Jag har bekräftat</button>
-    <div class="actions"><button class="btn" data-act="resendVerify">Skicka mejlet igen</button><button class="btn ghost" data-act="logout">Logga ut</button></div>
-    <p class="banner" id="auth-msg" ${S.authMsg ? '' : 'hidden'}>${esc(S.authMsg)}</p></section>`;
-  if (S.user && S.denied) return `<section class="login">${hero}
-    <p class="banner">Kontot <b>${esc(S.user.email)}</b> har inte tillgång till appen ännu. Ägaren behöver lägga till e-postadressen i Firebase.</p>
-    <button class="btn" data-act="logout">Logga ut</button></section>`;
-  return `<section class="login">${hero}
-    <button class="btn primary big" data-act="loginGoogle">Logga in med Google</button>
-    <p class="or"><span>eller med e-post</span></p>
-    <form id="login-form" class="login-form" novalidate>
-      <input id="l-email" class="field" type="email" autocomplete="email" placeholder="E-post" aria-label="E-post">
-      <input id="l-pass" class="field" type="password" autocomplete="current-password" placeholder="Lösenord, minst 6 tecken" aria-label="Lösenord">
-      <div class="actions"><button class="btn primary" type="submit">Logga in</button><button class="btn" type="button" data-act="signup">Skapa konto</button><button class="btn ghost small" type="button" data-act="resetPw">Glömt lösenordet?</button></div>
-    </form>
-    <p class="banner" id="auth-msg" ${S.authMsg ? '' : 'hidden'}>${esc(S.authMsg)}</p>
-    <p><button class="linkbtn" data-act="privacy">Om appen och integritet</button></p></section>`;
+function lastBackup(){ try { return +localStorage.getItem(LS_BACKUP) || 0; } catch { return 0; } }
+function backupDue(){
+  const n = Object.keys(S.passes).length + Object.keys(S.drills).length;
+  return n > 0 && Date.now() - lastBackup() > 30 * 864e5;
+}
+function fmtAgo(t){
+  if (!t) return 'aldrig';
+  const d = Math.floor((Date.now() - t) / 864e5);
+  return d < 1 ? 'i dag' : d === 1 ? 'i går' : `för ${d} dagar sedan`;
 }
 function privacyHTML(){
-  const owner = CFG.owner ? esc(CFG.owner) : 'Den som driver appen';
   return `<header class="sh-head"><h2>Integritet</h2><button class="icon-btn" data-act="closeSheet" aria-label="Stäng">✕</button></header>
   <div class="prose">
-  <p><b>Stigpass</b> är ett verktyg för att planera cykelträning. ${owner} ansvarar för appen och för uppgifterna som sparas i den.${CFG.contact ? ` Kontakt: <span class="sel">${esc(CFG.contact)}</span>.` : ''}</p>
-  <h3>Vad som sparas</h3><p>När du loggar in sparas din e-postadress, ditt namn om du loggar in med Google, och ett användar-id. Det du själv lägger in sparas också: pass, övningar, banor och skisser. Varje konto har ett eget utrymme som bara det kontot kan läsa.</p>
-  <p>Skriv inga uppgifter om barn, som namn eller hälsa, och använd inte bilder där personer går att känna igen.</p>
-  <h3>Varför</h3><p>För att appen ska fungera och visa samma pass på alla dina enheter. Appen har ingen spårning, statistik eller reklam.</p>
-  <h3>Var</h3><p>Uppgifterna sparas i Google Firebase. Databasen med passen ligger i EU. Inloggningen sköts av Google och kan behandlas utanför EU enligt Googles villkor för Firebase.</p>
-  <h3>Hur länge</h3><p>Tills du raderar ditt konto. Du gör det själv under Konto → Radera konto, och då tas all din data bort.</p>
-  <h3>Dina rättigheter</h3><p>Du har rätt att få veta vilka uppgifter som finns om dig och att få dem rättade eller raderade. Hör av dig till kontakten ovan. Du kan också vända dig till Integritetsskyddsmyndigheten (IMY).</p>
-  <h3>Lagring i enheten</h3><p>Appen sparar inloggningen och en kopia av din data i webbläsaren, så att den fungerar utan nät. Det behövs för att appen ska fungera, så inget samtycke krävs. Inga kakor för spårning används.</p>
+  <p><b>Stigpass</b> är ett verktyg för att planera cykelträning.</p>
+  <h3>Var datan finns</h3><p>Allt du lägger in, som pass, övningar, banor och skisser, sparas bara i den här enheten, i webbläsarens lagring. Inget skickas till någon server och ingen annan kan se det. Appen har ingen inloggning, spårning, statistik eller reklam.</p>
+  <h3>Själva appen</h3><p>Appens filer hämtas från GitHub Pages. Som alla webbservrar ser GitHub din IP-adress när filerna laddas. Därefter fungerar appen även utan nät.</p>
+  <h3>Det du delar</h3><p>Bilder och text som du delar i till exempel WhatsApp följer de appars villkor. Skriv inga uppgifter om barn, som namn eller hälsa, och använd inte bilder där personer går att känna igen.</p>
+  <h3>Spara säkerhetskopior</h3><p>Rensar du webbplatsdata i webbläsaren, tar bort appen från hemskärmen eller byter telefon försvinner datan. Spara därför en säkerhetskopia ibland under Meny → Spara säkerhetskopia.</p>
   </div>`;
 }
 function accountHTML(){
   const n = {p:Object.keys(S.passes).length, d:Object.keys(S.drills).length, r:Object.keys(S.routes).length, s:Object.keys(S.sketches).length};
-  return `<header class="sh-head"><h2>Konto</h2><button class="icon-btn" data-act="closeSheet" aria-label="Stäng">✕</button></header>
-  <p>Inloggad som <b>${esc(S.user?.email || '')}</b></p>
-  <p class="hint" style="margin:0">${n.p} pass · ${n.d} övningar · ${n.r} banor · ${n.s} skisser</p>
+  return `<header class="sh-head"><h2>Meny</h2><button class="icon-btn" data-act="closeSheet" aria-label="Stäng">✕</button></header>
+  <p>${n.p} pass · ${n.d} ${n.d === 1 ? 'övning' : 'övningar'} · ${n.r} ${n.r === 1 ? 'bana' : 'banor'} · ${n.s} ${n.s === 1 ? 'skiss' : 'skisser'}, sparade i den här enheten.</p>
+  <p class="hint" style="margin:0">Senaste säkerhetskopia: ${fmtAgo(lastBackup())}</p>
   <div class="stack">
-    <button class="btn" data-act="exportData">Spara säkerhetskopia</button>
+    <button class="btn primary" data-act="exportData">Spara säkerhetskopia</button>
     <label class="btn">Importera från fil<input type="file" id="import-in" accept=".json,application/json" hidden></label>
     <button class="btn" data-act="privacy">Om appen och integritet</button>
-    <button class="btn" data-act="logout">Logga ut</button>
   </div>
-  <details class="more" ${S.sheet.confirm === 'del' || S.sheet.busy ? 'open' : ''}><summary>Radera konto</summary><div class="more-body">
-    <p>Allt du har sparat tas bort för gott: pass, övningar, banor, skisser och själva kontot. Spara gärna en säkerhetskopia först.</p>
+  <details class="more" ${S.sheet.confirm === 'del' || S.sheet.busy ? 'open' : ''}><summary>Radera all data</summary><div class="more-body">
+    <p>Allt i den här enheten tas bort: pass, övningar, banor och skisser. Spara gärna en säkerhetskopia först.</p>
     ${S.sheet.busy ? '<p class="hint">Raderar…</p>' : sh_confirm('del')
-      ? `<span class="confirm">Är du säker? <button class="btn small danger" data-act="deleteAccount">Radera allt</button><button class="btn small" data-act="sheetConfirm" data-v="">Avbryt</button></span>`
-      : `<button class="btn danger" data-act="sheetConfirm" data-v="del">Radera mitt konto och all min data</button>`}
+      ? `<span class="confirm">Är du säker? <button class="btn small danger" data-act="wipeData">Radera allt</button><button class="btn small" data-act="sheetConfirm" data-v="">Avbryt</button></span>`
+      : `<button class="btn danger" data-act="sheetConfirm" data-v="del">Radera all data</button>`}
   </div></details>`;
 }
 Object.assign(ACT, {
   account(){ openSheet({kind:'account'}); },
   privacy(){ openSheet({kind:'privacy'}); },
-  async loginGoogle(){
-    if (!FBX) return; setAuthMsg('');
-    try { await FB.signInWithPopup(FBX.auth, new FB.GoogleAuthProvider()); }
-    catch (e){ console.warn(e); setAuthMsg(authErr(e)); }
-  },
-  async signup(){
-    const em = $('#l-email')?.value.trim(), pw = $('#l-pass')?.value || '';
-    if (!em || pw.length < 6){ setAuthMsg('Fyll i e-post och ett lösenord med minst 6 tecken.'); return; }
-    try { const cr = await FB.createUserWithEmailAndPassword(FBX.auth, em, pw); await FB.sendEmailVerification(cr.user); }
-    catch (e){ setAuthMsg(authErr(e)); }
-  },
-  async resetPw(){
-    const em = $('#l-email')?.value.trim();
-    if (!em){ setAuthMsg('Skriv din e-postadress först.'); return; }
-    try { await FB.sendPasswordResetEmail(FBX.auth, em); setAuthMsg('Vi har skickat ett mejl med en länk för att välja nytt lösenord.'); }
-    catch (e){ setAuthMsg(authErr(e)); }
-  },
-  async checkVerified(){
-    const u = FBX?.auth.currentUser; if (!u) return;
-    try { await FB.reload(u); await u.getIdToken(true); } catch {}
-    if (u.emailVerified){ S.user.verified = true; S.authMsg = ''; startData(); }
-    else setAuthMsg('E-postadressen är inte bekräftad än. Kolla skräpposten om mejlet inte syns.');
-  },
-  async resendVerify(){
-    const u = FBX?.auth.currentUser; if (!u) return;
-    try { await FB.sendEmailVerification(u); setAuthMsg('Mejlet är skickat igen.'); } catch (e){ setAuthMsg(authErr(e)); }
-  },
-  async logout(){ flushPass(); flushRoute(); closeSheet(); try { await FB.signOut(FBX.auth); } catch {} },
   exportData(){
+    flushPass(); flushRoute();
     const out = {app:'stigpass', version:1, exported:new Date().toISOString()};
     for (const col of COLS){ out[col] = {}; for (const [id, d] of Object.entries(S[col])){ const c = {...d}; delete c.id; out[col][id] = c; } }
     const blob = new Blob([JSON.stringify(out)], {type:'application/json'});
-    saveFile(`stigpass-sakerhetskopia-${today()}.json`, blob, false);
+    try { localStorage.setItem(LS_BACKUP, String(Date.now())); } catch {}
+    saveFile(`stigpass-sakerhetskopia-${today()}.json`, blob, true);
+    if (S.sheet && S.sheet.kind === 'account') renderSheet();
+    renderBanner();
   },
-  async deleteAccount(){
-    const u = FBX?.auth.currentUser; if (!u || !S.sheet) return;
-    S.sheet.busy = true; renderSheet();
+  async wipeData(){
+    if (!S.sheet) return; S.sheet.busy = true; renderSheet();
     try {
-      const jobs = [];
-      for (const col of COLS) for (const id of Object.keys(S[col])) jobs.push(FB.deleteDoc(FB.doc(FBX.fs, 'users', u.uid, col, id)));
-      await Promise.all(jobs);
-      stopData();
-      try { await FB.deleteUser(u); }
-      catch (e){
-        if (String(e.code).includes('requires-recent-login') && !S.user.password){
-          await FB.reauthenticateWithPopup(u, new FB.GoogleAuthProvider()); await FB.deleteUser(u);
-        } else throw e;
-      }
-      closeSheet(); toast('Kontot och all data är raderade');
-    } catch (e){
-      console.warn(e);
-      if (S.sheet){ S.sheet.busy = false; renderSheet(); }
-      toast(String(e && e.code).includes('requires-recent-login') ? 'Datan är raderad. Logga ut och in igen, och radera sedan kontot på nytt.' : 'Det gick inte att radera allt. Kontrollera nätet och försök igen.');
-    }
+      if (IDB) for (const col of COLS) await idbReq(col, 'readwrite', st => st.clear());
+      for (const col of COLS) S[col] = {};
+      S.edit = null; S.routeId = null;
+      closeSheet(); render(); toast('All data är raderad');
+    } catch (e){ console.warn(e); S.sheet.busy = false; renderSheet(); toast('Det gick inte att radera. Försök igen.'); }
   },
   shareText(){
     const txt = $('#share-text')?.value || '';
@@ -2251,13 +2158,6 @@ Object.assign(ACT, {
     try { await navigator.share({files}); } catch (e){ if (!e || e.name !== 'AbortError') toast('Det gick inte att dela alla på en gång. Dela bilderna en och en.'); }
   },
   dlImg(el){ const im = S.sheet?.images?.[+el.dataset.i]; if (im) saveFile(im.file, im.blob, false); }
-});
-document.addEventListener('submit', e => {
-  if (e.target.id !== 'login-form') return;
-  e.preventDefault();
-  const em = $('#l-email')?.value.trim(), pw = $('#l-pass')?.value || '';
-  if (!em || !pw){ setAuthMsg('Fyll i e-post och lösenord.'); return; }
-  FB.signInWithEmailAndPassword(FBX.auth, em, pw).catch(err => setAuthMsg(authErr(err)));
 });
 document.addEventListener('change', async e => {
   if (e.target.id !== 'import-in' || !e.target.files[0]) return;
@@ -2271,10 +2171,8 @@ document.addEventListener('change', async e => {
     toast(`Importerade ${pl('passes', 'pass', 'pass')}, ${pl('drills', 'övning', 'övningar')}, ${pl('routes', 'bana', 'banor')} och ${pl('sketches', 'skiss', 'skisser')}`);
   } catch (err){ console.warn(err); toast('Kunde inte läsa filen.'); }
 });
-window.addEventListener('online', () => render());
-window.addEventListener('offline', () => render());
 if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js').catch(() => {});
-bootFirebase();
+bootLocal();
 
 render();
 </script>

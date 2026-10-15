@@ -1,0 +1,20 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Vilka som får logga in. Skriv e-postadresser med små bokstäver.
+    // Ska en kompis prova: lägg till en rad, t.ex. 'kompis@gmail.com', och tryck Publicera.
+    function tillaten() {
+      return request.auth != null
+        && request.auth.token.email_verified == true
+        && request.auth.token.email.lower() in [
+          'DIN-EPOST@gmail.com'
+        ];
+    }
+
+    // Varje konto har ett eget utrymme som bara det kontot kan läsa och skriva.
+    match /users/{uid}/{dokument=**} {
+      allow read, write: if tillaten() && request.auth.uid == uid;
+    }
+  }
+}

@@ -1,0 +1,2283 @@
+<!doctype html>
+<html lang="sv">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Stigpass</title>
+<meta name="description" content="Planera träningspass för cykelgruppen och dela dem med ledarna.">
+<meta name="theme-color" content="#eef1f6" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0c1016" media="(prefers-color-scheme: dark)">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Stigpass">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<style>
+@font-face{font-family:'Barlow';font-style:normal;font-weight:400;font-display:swap;src:url(fonts/barlow-latin-400-normal.woff2) format('woff2')}
+@font-face{font-family:'Barlow';font-style:normal;font-weight:500;font-display:swap;src:url(fonts/barlow-latin-500-normal.woff2) format('woff2')}
+@font-face{font-family:'Barlow';font-style:normal;font-weight:600;font-display:swap;src:url(fonts/barlow-latin-600-normal.woff2) format('woff2')}
+@font-face{font-family:'Barlow';font-style:normal;font-weight:700;font-display:swap;src:url(fonts/barlow-latin-700-normal.woff2) format('woff2')}
+@font-face{font-family:'Barlow';font-style:normal;font-weight:800;font-display:swap;src:url(fonts/barlow-latin-800-normal.woff2) format('woff2')}
+@font-face{font-family:'Barlow Condensed';font-style:normal;font-weight:500;font-display:swap;src:url(fonts/barlow-condensed-latin-500-normal.woff2) format('woff2')}
+@font-face{font-family:'Barlow Condensed';font-style:normal;font-weight:600;font-display:swap;src:url(fonts/barlow-condensed-latin-600-normal.woff2) format('woff2')}
+@font-face{font-family:'Barlow Condensed';font-style:normal;font-weight:700;font-display:swap;src:url(fonts/barlow-condensed-latin-700-normal.woff2) format('woff2')}
+:root{color-scheme:light;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+body{margin:0;font:14px system-ui,sans-serif}
+img{max-width:100%}
+[hidden]{display:none!important}
+</style>
+<script src="config.js"></script>
+<script src="firebase.js"></script>
+</head>
+<body>
+<style>
+/* Layout: one-column phone app. Sticky top bar, content, fixed dock with block palette + three tabs.
+   Signature: the Zwift-style intensity strip, where bar width = minutes and bar height = intensity. */
+:root{
+  --bg:#eef1f6; --surface:#ffffff; --surface-2:#e3e8f0; --line:#d0d7e2;
+  --fg:#0e131b; --muted:#566275; --accent:#e5530c; --accent-ink:#ffffff; --danger:#c8281c; --ok:#1e8a40;
+  --t-samling:#77829a; --t-uppvarmning:#1d74d8; --t-teknik:#1e9444; --t-lek:#c99400; --t-stafett:#d02f7c;
+  --t-intervall:#d3271b; --t-loop:#7f3bd6; --t-stationer:#0d958a; --t-avslutning:#4f5d78;
+  --shadow:0 10px 30px rgba(14,19,27,.18); --int1:#1e8a40; --int2:#b88600; --int3:#d3271b;
+  --font-display:"Barlow Condensed","Arial Narrow",system-ui,sans-serif;
+  --font-body:"Barlow",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --r:12px;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0c1016; --surface:#151b25; --surface-2:#1d2531; --line:#283141;
+    --fg:#edf1f7; --muted:#8d98ac; --accent:#ff6a21; --accent-ink:#1a0b02; --danger:#ff5246; --ok:#3ccf66;
+    --t-samling:#8e99b0; --t-uppvarmning:#3f9cff; --t-teknik:#35c75d; --t-lek:#ffcb1f; --t-stafett:#ff4fa6;
+    --t-intervall:#ff4a3d; --t-loop:#b469ff; --t-stationer:#2bd3c1; --t-avslutning:#7484a3;
+    --shadow:0 12px 34px rgba(0,0,0,.5); --int1:#3ccf66; --int2:#ffcb1f; --int3:#ff4a3d; color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0c1016; --surface:#151b25; --surface-2:#1d2531; --line:#283141;
+  --fg:#edf1f7; --muted:#8d98ac; --accent:#ff6a21; --accent-ink:#1a0b02; --danger:#ff5246; --ok:#3ccf66;
+  --t-samling:#8e99b0; --t-uppvarmning:#3f9cff; --t-teknik:#35c75d; --t-lek:#ffcb1f; --t-stafett:#ff4fa6;
+  --t-intervall:#ff4a3d; --t-loop:#b469ff; --t-stationer:#2bd3c1; --t-avslutning:#7484a3;
+  --shadow:0 12px 34px rgba(0,0,0,.5); --int1:#3ccf66; --int2:#ffcb1f; --int3:#ff4a3d; color-scheme:dark;
+}
+/* The app's own sun/moon toggle wins over both the system and the viewer setting. */
+:root[data-mode="light"]{
+  --bg:#eef1f6; --surface:#ffffff; --surface-2:#e3e8f0; --line:#d0d7e2;
+  --fg:#0e131b; --muted:#566275; --accent:#e5530c; --accent-ink:#ffffff; --danger:#c8281c; --ok:#1e8a40;
+  --t-samling:#77829a; --t-uppvarmning:#1d74d8; --t-teknik:#1e9444; --t-lek:#c99400; --t-stafett:#d02f7c;
+  --t-intervall:#d3271b; --t-loop:#7f3bd6; --t-stationer:#0d958a; --t-avslutning:#4f5d78;
+  --shadow:0 10px 30px rgba(14,19,27,.18); --int1:#1e8a40; --int2:#b88600; --int3:#d3271b; color-scheme:light;
+}
+:root[data-mode="dark"]{
+  --bg:#0c1016; --surface:#151b25; --surface-2:#1d2531; --line:#283141;
+  --fg:#edf1f7; --muted:#8d98ac; --accent:#ff6a21; --accent-ink:#1a0b02; --danger:#ff5246; --ok:#3ccf66;
+  --t-samling:#8e99b0; --t-uppvarmning:#3f9cff; --t-teknik:#35c75d; --t-lek:#ffcb1f; --t-stafett:#ff4fa6;
+  --t-intervall:#ff4a3d; --t-loop:#b469ff; --t-stationer:#2bd3c1; --t-avslutning:#7484a3;
+  --shadow:0 12px 34px rgba(0,0,0,.5); --int1:#3ccf66; --int2:#ffcb1f; --int3:#ff4a3d; color-scheme:dark;
+}
+
+*,*::before,*::after{box-sizing:border-box}
+html,body{background:var(--bg);color:var(--fg)}
+body{font-family:var(--font-body);font-size:16px;line-height:1.45;
+  padding-left:max(16px, env(safe-area-inset-left,0px));padding-right:max(16px, env(safe-area-inset-right,0px));
+  -webkit-tap-highlight-color:transparent}
+body.noscroll{overflow:hidden}
+#app{max-width:720px;margin:0 auto;padding-block:0 96px}
+#app.with-palette{padding-block:0 170px}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+h1,h2,h3,h4{font-family:var(--font-display);font-weight:700;margin:0;line-height:1.1;text-wrap:balance}
+p{margin:0}
+
+/* top bar */
+.topbar{position:sticky;top:env(safe-area-inset-top,0px);z-index:20;background:var(--bg);
+  display:flex;align-items:center;gap:12px;padding-block:12px 10px}
+.brand{display:flex;align-items:center;gap:10px;font-family:var(--font-display);font-weight:700;font-size:22px;letter-spacing:.08em}
+.brand-mark{display:flex;align-items:flex-end;gap:2px;height:20px}
+.brand-mark i{display:block;width:5px;border-radius:1px}
+.brand-mark i:nth-child(1){height:40%;background:var(--t-uppvarmning)}
+.brand-mark i:nth-child(2){height:70%;background:var(--t-teknik)}
+.brand-mark i:nth-child(3){height:100%;background:var(--accent)}
+.brand-mark i:nth-child(4){height:55%;background:var(--t-lek)}
+.spacer{flex:1}
+.sync{font-size:13px;color:var(--muted)}
+.icon-btn{display:inline-grid;place-items:center;width:44px;height:44px;border-radius:50%;
+  border:1px solid var(--line);background:var(--surface)}
+.icon-btn svg{width:22px;height:22px}
+.banner{margin-block:4px 10px;padding:10px 12px;border-radius:var(--r);background:var(--surface-2);font-size:14px}
+
+/* buttons */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:44px;padding:0 16px;
+  border-radius:999px;border:1px solid var(--line);background:var(--surface);font-weight:600;font-size:15px;white-space:nowrap}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.btn.danger{color:var(--danger);border-color:color-mix(in srgb, var(--danger) 40%, var(--line))}
+.btn.ghost{background:transparent}
+.btn.small{min-height:36px;padding:0 12px;font-size:14px}
+.btn:disabled{opacity:.5}
+.btn svg{width:18px;height:18px}
+
+.page-head{display:flex;align-items:center;gap:12px;margin-block:8px 16px}
+.page-head h1{font-size:34px;flex:1;text-transform:uppercase;letter-spacing:.02em}
+.eyebrow{font-family:var(--font-display);font-weight:600;font-size:14px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+.empty{padding:28px 18px;border:1px dashed var(--line);border-radius:var(--r);color:var(--muted);text-align:center;display:grid;gap:12px;justify-items:center}
+.empty b{color:var(--fg);font-family:var(--font-display);font-size:22px}
+.section-label{margin-block:22px 10px}
+
+/* strip */
+.strip{position:relative;display:flex;align-items:flex-end;width:100%;overflow:hidden}
+.strip.mini{height:34px}
+#ed-strip{overflow-x:clip}
+.strip.big{width:calc(100% - 14px);height:112px;background:linear-gradient(to top, var(--line) 1px, transparent 1px) 0 0/100% 33.33%;border-bottom:2px solid var(--line);overflow:visible}
+.seg{position:relative;flex:0 0 auto;height:100%;display:flex;align-items:flex-end;padding-right:2px;min-width:3px}
+.seg .bar{width:100%;border-radius:3px 3px 0 0;display:flex;flex-direction:column;gap:2px;overflow:hidden}
+.seg .bar i{flex:1;background:inherit;filter:brightness(1.12)}
+.seg .bar i:nth-child(even){filter:brightness(.85)}
+.strip.big .seg{cursor:pointer}
+.seg.sel .bar{outline:3px solid var(--fg);outline-offset:-1px}
+.grip{position:absolute;right:-14px;top:0;bottom:0;width:28px;display:grid;place-items:center;touch-action:none;cursor:ew-resize;z-index:3}
+.grip::before{content:"";width:10px;height:44px;border-radius:6px;background:var(--fg);box-shadow:0 0 0 3px var(--bg)}
+.tip{position:absolute;left:50%;bottom:calc(100% + 6px);transform:translateX(-50%);background:var(--fg);color:var(--bg);
+  font-family:var(--font-display);font-weight:700;font-size:16px;padding:2px 8px;border-radius:6px;white-space:nowrap;pointer-events:none}
+.plan-mark{position:absolute;top:-6px;bottom:-2px;width:0;border-left:2px dashed var(--muted);pointer-events:none}
+.plan-mark span{position:absolute;top:-18px;right:4px;font-size:11px;color:var(--muted);white-space:nowrap;font-weight:600}
+.ticks{position:relative;height:20px;margin-right:14px;margin-top:4px;font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums}
+.ticks span{position:absolute;transform:translateX(-50%)}
+.ticks span:first-child{transform:none}
+
+.t-samling{background:var(--t-samling)} .t-uppvarmning{background:var(--t-uppvarmning)} .t-teknik{background:var(--t-teknik)}
+.t-lek{background:var(--t-lek)} .t-stafett{background:var(--t-stafett)} .t-intervall{background:var(--t-intervall)}
+.t-loop{background:var(--t-loop)} .t-stationer{background:var(--t-stationer)} .t-avslutning{background:var(--t-avslutning)}
+.dot{display:inline-block;width:10px;height:10px;border-radius:3px;flex:0 0 auto}
+
+/* pass list */
+.plist{display:grid;gap:10px}
+.pcard{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:14px;display:grid;gap:10px;cursor:pointer}
+.pcard-top{display:flex;gap:12px;align-items:flex-start}
+.pcard h3{font-size:22px}
+.pmeta{flex:1;min-width:0}
+.pmeta p{color:var(--muted);font-size:14px;overflow-wrap:anywhere}
+.pmin{text-align:right;font-family:var(--font-display);line-height:1}
+.pmin b{font-size:30px;display:block}
+.pmin span{font-size:13px;color:var(--muted);letter-spacing:.08em;text-transform:uppercase}
+.pactions{display:flex;gap:8px;flex-wrap:wrap}
+.confirm{display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-weight:600}
+
+/* editor */
+.ed-top{display:flex;align-items:center;gap:8px;margin-block:4px 10px}
+.title-input{width:100%;border:0;background:transparent;font-family:var(--font-display);font-weight:700;font-size:32px;line-height:1.1;padding:4px 0;
+  border-bottom:2px solid transparent;border-radius:0}
+.title-input:focus{outline:none;border-bottom-color:var(--accent)}
+.when{display:grid;grid-template-columns:1.4fr 1fr;gap:8px;margin-block:6px}
+.field{width:100%;min-height:44px;border:1px solid var(--line);background:var(--surface);border-radius:10px;padding:8px 12px}
+textarea.field{resize:vertical;min-height:80px}
+.field:focus{outline:2px solid var(--accent);outline-offset:-1px}
+.totalrow{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;margin-block:18px 26px}
+.tot-num{font-family:var(--font-display);line-height:.9;display:flex;align-items:baseline;gap:6px}
+.tot-num b{font-size:56px;font-variant-numeric:tabular-nums}
+.tot-num span{font-size:18px;color:var(--muted);letter-spacing:.1em;text-transform:uppercase;font-weight:600}
+.tot-sub{font-size:14px;color:var(--muted);text-align:right}
+.tot-sub .ok{color:var(--ok);font-weight:600}
+.tot-sub .over{color:var(--danger);font-weight:600}
+
+.blist{display:grid;gap:8px;margin-top:18px}
+.bwrap{position:relative;border-radius:var(--r);overflow:hidden}
+.bdel{position:absolute;inset:0;display:flex;align-items:center;padding-left:18px;gap:8px;background:var(--danger);color:#fff;font-weight:700;border-radius:var(--r);opacity:0}
+.bdel svg{width:20px;height:20px}
+.bcard{touch-action:pan-y;position:relative;display:flex;align-items:stretch;background:var(--surface);border:1px solid var(--line);border-radius:var(--r);
+  overflow:hidden;cursor:pointer;min-height:68px}
+.bcard.sel{border-color:var(--fg);box-shadow:inset 0 0 0 1px var(--fg)}
+.bwrap.dragging{z-index:5;overflow:visible}
+.bcard.dragging{z-index:5;box-shadow:var(--shadow);border-color:var(--accent);transition:none}
+.handle{flex:0 0 40px;display:grid;place-items:center;color:var(--muted);touch-action:none;cursor:grab;border:0;background:transparent}
+.handle svg{width:18px;height:18px}
+.bstripe{flex:0 0 6px}
+.bbody{flex:1;min-width:0;padding:10px 12px}
+.bline{display:flex;gap:8px;align-items:center;font-size:12px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.bbody h4{font-size:20px;margin-top:2px}
+.bdesc{font-size:14px;color:var(--muted);margin-top:2px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.bextra{font-size:13px;margin-top:6px;display:flex;flex-wrap:wrap;gap:4px 10px;color:var(--fg)}
+.bextra span{display:inline-flex;align-items:center;gap:4px}
+.bmin{flex:0 0 auto;padding:10px 12px 10px 4px;text-align:right;font-family:var(--font-display);line-height:1}
+.bmin b{font-size:28px;display:block;font-variant-numeric:tabular-nums}
+.bmin span{font-size:12px;color:var(--muted);letter-spacing:.08em;text-transform:uppercase}
+.thumb{flex:0 0 auto;width:64px;align-self:center;margin-right:10px;border-radius:8px;overflow:hidden;border:1px solid var(--line);background:#fff}
+.thumb img{display:block;width:100%;aspect-ratio:4/3;object-fit:cover}
+.ipill{display:inline-flex;align-items:center;gap:5px;padding:1px 8px 1px 6px;border-radius:999px;font-size:11px;letter-spacing:.06em;color:var(--fg);background:color-mix(in srgb, var(--ic) 20%, transparent)}
+.ipill i{width:8px;height:8px;border-radius:50%;background:var(--ic)}
+.i1{--ic:var(--int1)} .i2{--ic:var(--int2)} .i3{--ic:var(--int3)}
+.seg3 button.iN{display:inline-flex;align-items:center;justify-content:center;gap:6px}
+.seg3 button.iN::before{content:"";width:9px;height:9px;border-radius:50%;background:var(--ic)}
+.seg3 button.iN[aria-pressed="true"]{background:var(--ic);color:#fff}
+.seg3 button.iN[aria-pressed="true"]::before{background:#fff}
+.seg3 button.i2[aria-pressed="true"]{color:#1a1400}
+.seg3 button.i2[aria-pressed="true"]::before{background:#1a1400}
+.thumb canvas{display:block;width:100%;aspect-ratio:4/3}
+.matpick{display:grid;gap:8px}
+.mchip{display:inline-flex;align-items:center;gap:2px;min-height:36px;padding:0 4px 0 12px;border-radius:999px;background:var(--fg);color:var(--bg);font-size:14px;font-weight:600}
+.mchip button{min-width:32px;min-height:32px;border:0;background:transparent;color:inherit;font-size:18px;line-height:1;border-radius:50%}
+.mchip b{min-width:22px;text-align:center;font-variant-numeric:tabular-nums}
+.chip.add{color:var(--muted)}
+.poi-ic{width:30px;height:30px;flex:0 0 30px}
+.chip img{width:22px;height:22px;margin-left:-6px}
+.hscroll-wrap{position:relative}
+.palette,.hscroll{-webkit-mask-image:linear-gradient(to right,#000 calc(100% - 36px),transparent);mask-image:linear-gradient(to right,#000 calc(100% - 36px),transparent)}
+.palette.end,.hscroll.end{-webkit-mask-image:none;mask-image:none}
+.sat{display:inline-flex;align-items:center;gap:6px;color:var(--accent);font-weight:600;text-decoration:none;font-size:14px}
+
+.matcard{margin-top:22px;background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:14px;display:grid;gap:10px}
+.matlist{display:flex;flex-wrap:wrap;gap:6px;list-style:none;margin:0;padding:0}
+.matlist li{background:var(--surface-2);border-radius:999px;padding:4px 12px;font-size:14px;font-weight:600;font-variant-numeric:tabular-nums}
+.more{margin-top:14px;background:var(--surface);border:1px solid var(--line);border-radius:var(--r)}
+.more summary{padding:14px;font-weight:600;cursor:pointer;list-style:none;display:flex;justify-content:space-between}
+.more summary::after{content:"+";font-size:20px;line-height:1;color:var(--muted)}
+.more[open] summary::after{content:"–"}
+.more-body{padding:0 14px 14px;display:grid;gap:12px}
+.lbl{display:block;font-size:13px;font-weight:600;color:var(--muted);margin-bottom:4px;letter-spacing:.02em}
+.hint{font-size:13px;color:var(--muted);margin-top:4px}
+.sk-row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.sk-prev{width:120px;border-radius:8px;overflow:hidden;border:1px solid var(--line);background:#fff}
+.sk-prev img{display:block;width:100%;aspect-ratio:4/3;object-fit:cover}
+
+/* dock */
+.dock{position:fixed;left:0;right:0;bottom:0;z-index:30;background:var(--surface);border-top:1px solid var(--line);
+  padding-left:max(0px, env(safe-area-inset-left,0px));padding-right:max(0px, env(safe-area-inset-right,0px));padding-bottom:env(safe-area-inset-bottom,0px)}
+.palette{display:flex;gap:8px;overflow-x:auto;padding:10px max(16px, env(safe-area-inset-left,0px));border-bottom:1px solid var(--line);scrollbar-width:none}
+.palette::-webkit-scrollbar{display:none}
+.pal{flex:0 0 auto;display:flex;align-items:center;gap:8px;min-height:44px;padding:0 14px 0 10px;border-radius:10px;border:1px solid var(--line);background:var(--bg);font-weight:600;font-size:14px}
+.pal .sw{width:8px;height:24px;border-radius:2px}
+.pal .plus{font-family:var(--font-display);font-size:20px;line-height:1;color:var(--muted)}
+.tabs{display:grid;grid-template-columns:repeat(3,1fr);max-width:720px;margin:0 auto}
+.tab{display:grid;justify-items:center;gap:2px;padding:8px 4px 10px;border:0;background:transparent;color:var(--muted);font-size:12px;font-weight:600;letter-spacing:.04em;min-height:56px}
+.tab svg{width:24px;height:24px}
+.tab[aria-current="page"]{color:var(--accent)}
+
+/* drills */
+.search{position:relative;margin-bottom:10px}
+.search svg{position:absolute;left:12px;top:50%;transform:translateY(-50%);width:18px;height:18px;color:var(--muted)}
+.search input{padding-left:38px}
+.chips{display:flex;gap:6px;overflow-x:auto;padding-bottom:6px;scrollbar-width:none}
+.chips::-webkit-scrollbar{display:none}
+.chips.wrap{flex-wrap:wrap;overflow:visible}
+.chip{flex:0 0 auto;display:inline-flex;align-items:center;gap:6px;min-height:36px;padding:0 12px;border-radius:999px;border:1px solid var(--line);background:var(--surface);font-size:14px;font-weight:600}
+.chip[aria-pressed="true"]{background:var(--fg);color:var(--bg);border-color:var(--fg)}
+.filters{display:grid;gap:4px;margin-bottom:12px}
+.frow{display:flex;gap:8px;align-items:center}
+.frow select{min-height:36px;border-radius:999px;border:1px solid var(--line);background:var(--surface);padding:0 10px;font-size:14px;font-weight:600}
+.dlist{display:grid;gap:8px}
+.dcard{display:flex;gap:12px;align-items:center;background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:10px;cursor:pointer}
+.dthumb{flex:0 0 76px;border-radius:8px;overflow:hidden;border:1px solid var(--line);background:#fff}
+.dthumb img{display:block;width:100%;aspect-ratio:4/3;object-fit:cover}
+.dthumb.none{aspect-ratio:4/3;display:flex;align-items:flex-end;gap:3px;padding:8px;background:var(--surface-2)}
+.dthumb.none i{flex:1;border-radius:2px}
+.dbody{flex:1;min-width:0}
+.dbody h4{font-size:19px}
+.dmeta{font-size:13px;color:var(--muted);overflow-wrap:anywhere}
+.tagrow{display:flex;gap:8px;align-items:center;font-size:12px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.count{font-size:14px;color:var(--muted);margin-bottom:8px}
+
+/* routes */
+.rlist{display:grid;gap:10px}
+.rcard{display:flex;gap:12px;align-items:center;background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:10px;cursor:pointer}
+.rcard canvas{flex:0 0 84px;width:84px;height:84px;border-radius:8px;background:var(--surface-2)}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-block:12px}
+.stat{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:10px 12px}
+.stat b{display:block;font-family:var(--font-display);font-size:28px;line-height:1;font-variant-numeric:tabular-nums}
+.stat span{font-size:12px;color:var(--muted);font-weight:600;letter-spacing:.06em;text-transform:uppercase}
+.mapbox{position:relative;background:var(--surface);border:1px solid var(--line);border-radius:var(--r);overflow:hidden}
+#route-canvas{display:block;width:100%;aspect-ratio:1/1;max-width:100%;touch-action:manipulation}
+#route-canvas.adding{cursor:crosshair}
+#ele-canvas{display:block;width:100%;height:150px}
+.tempo{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-block:6px 12px;font-size:14px}
+.tempo input{width:76px}
+.poilist{display:grid;gap:8px;margin-top:8px}
+.poi{display:flex;gap:8px;align-items:center}
+.poi .num{flex:0 0 28px;height:28px;border-radius:50%;display:grid;place-items:center;color:#fff;font-weight:700;font-size:14px}
+.poi input{flex:1;min-width:0}
+
+/* sheet */
+#sheet{position:fixed;inset:0;z-index:50}
+.backdrop{position:absolute;inset:0;background:rgba(5,8,12,.5)}
+.sheet{position:absolute;left:0;right:0;bottom:0;max-height:90%;display:flex;flex-direction:column;background:var(--bg);
+  border-radius:18px 18px 0 0;box-shadow:var(--shadow);max-width:720px;margin:0 auto;padding-bottom:env(safe-area-inset-bottom,0px)}
+.sheet-grab{display:grid;place-items:center;height:26px;touch-action:none;cursor:grab;flex:0 0 auto}
+.sheet-grab span{width:44px;height:5px;border-radius:3px;background:var(--line)}
+.sheet-body{overflow-y:auto;padding:0 max(16px, env(safe-area-inset-left,0px)) 24px max(16px, env(safe-area-inset-right,0px));display:grid;gap:14px;overscroll-behavior:contain}
+.sh-head{display:flex;align-items:center;gap:10px;position:sticky;top:0;background:var(--bg);padding-block:4px 8px;z-index:2}
+.sh-head h2{font-size:26px;flex:1;text-transform:uppercase;letter-spacing:.02em}
+.sh-head .dot{width:14px;height:14px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+@media (max-width:420px){.grid2{grid-template-columns:1fr}}
+.stepper{display:flex;align-items:center;gap:6px}
+.stepper input{width:70px;text-align:center;font-variant-numeric:tabular-nums}
+.stepper button{min-width:48px}
+.seg3{display:grid;grid-template-columns:repeat(3,1fr);border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.seg3 button{min-height:44px;border:0;background:var(--surface);font-weight:600;font-size:14px}
+.seg3 button+button{border-left:1px solid var(--line)}
+.seg3 button[aria-pressed="true"]{background:var(--fg);color:var(--bg)}
+.actions{display:flex;gap:8px;flex-wrap:wrap}
+.stations{display:grid;gap:10px}
+.station{border:1px solid var(--line);border-radius:var(--r);padding:10px;display:grid;gap:8px;background:var(--surface)}
+.st-head{display:flex;align-items:center;gap:8px}
+.st-head b{flex:1;font-family:var(--font-display);font-size:18px}
+.mini{width:64px;min-height:36px;text-align:center}
+.picklist{display:grid;gap:8px}
+.share-text{font-family:var(--font-body);font-size:14px;min-height:220px;white-space:pre-wrap}
+.imgs{display:grid;gap:14px}
+.imgcard{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:10px;display:grid;gap:10px}
+.imgcard img{width:100%;border-radius:8px;display:block}
+.imgcard-head{display:flex;align-items:center;justify-content:space-between;gap:8px}
+
+/* sketch editor */
+#sk{position:fixed;inset:0;z-index:70;background:var(--bg);display:flex;flex-direction:column;
+  padding:env(safe-area-inset-top,0px) max(12px, env(safe-area-inset-right,0px)) env(safe-area-inset-bottom,0px) max(12px, env(safe-area-inset-left,0px))}
+.sk-top{display:flex;align-items:center;gap:8px;padding-block:10px}
+.sk-top b{flex:1;text-align:center;font-family:var(--font-display);font-size:22px;text-transform:uppercase;letter-spacing:.06em}
+.sk-tools{display:grid;grid-template-columns:repeat(auto-fill,minmax(56px,1fr));gap:6px;padding-bottom:8px;max-height:34vh;overflow-y:auto}
+.sk-tools::-webkit-scrollbar{display:none}
+.tool{display:grid;justify-items:center;align-content:center;gap:2px;min-height:54px;padding:4px 2px;border-radius:10px;border:1px solid var(--line);background:var(--surface);font-size:11px;font-weight:600;line-height:1.1;text-align:center}
+.tool .ic{display:grid;place-items:center;width:30px;height:30px;border-radius:7px;background:#fff;color:#1b2230}
+.tool .ic img{width:28px;height:28px}
+.tool svg{width:20px;height:20px}
+.tool[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.colors{display:flex;gap:8px;align-items:center;padding-block:4px 8px}
+.color{width:36px;height:36px;border-radius:50%;border:3px solid var(--bg);box-shadow:0 0 0 1px var(--line)}
+.color[aria-pressed="true"]{box-shadow:0 0 0 3px var(--fg)}
+.sk-stage{flex:1;min-height:0;display:grid;place-items:center}
+#sk-canvas{display:block;width:100%;max-width:100%;max-height:100%;aspect-ratio:4/3;object-fit:contain;background:#fff;border-radius:10px;border:1px solid var(--line);touch-action:none}
+.sk-bottom{display:flex;gap:8px;padding-block:10px;flex-wrap:wrap}
+
+#toast{display:flex;align-items:center;gap:12px;position:fixed;left:50%;bottom:calc(150px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);z-index:90;
+  background:var(--fg);color:var(--bg);padding:10px 16px;border-radius:999px;font-weight:600;font-size:14px;max-width:calc(100% - 32px);text-align:center;box-shadow:var(--shadow)}
+#toast button{border:0;background:transparent;color:var(--accent);font-weight:700;font-size:15px;padding:6px 4px;min-height:36px}
+.bcard.swiping{transition:none}
+.bcard.back{transition:transform .2s ease}
+@media (prefers-reduced-motion: no-preference){
+  .sheet.anim{animation:up .22s ease-out}
+  @keyframes up{from{transform:translateY(30px);opacity:.6}to{transform:none;opacity:1}}
+}
+
+.login{display:grid;gap:14px;max-width:420px;margin:6vh auto 0}
+.login-hero{display:grid;gap:10px}
+.login-hero h1{font-size:56px;text-transform:uppercase;letter-spacing:.06em}
+.login-hero p{color:var(--muted);font-size:17px}
+.login-bars{display:flex;align-items:flex-end;gap:4px;height:56px}
+.login-bars i{flex:1;border-radius:4px 4px 0 0}
+.btn.big{min-height:52px;font-size:17px}
+.or{display:flex;align-items:center;gap:10px;color:var(--muted);font-size:14px}
+.or::before,.or::after{content:"";flex:1;height:1px;background:var(--line)}
+.login-form{display:grid;gap:10px}
+.linkbtn{border:0;background:none;padding:0;color:var(--accent);font-weight:600;text-decoration:underline;cursor:pointer}
+.stack{display:grid;gap:8px}
+.prose{display:grid;gap:8px;max-width:65ch}
+.prose h3{font-size:20px;margin-top:8px}
+.sel{user-select:all}
+</style>
+
+<div id="app">
+  <header class="topbar">
+    <div class="brand"><span class="brand-mark" aria-hidden="true"><i></i><i></i><i></i><i></i></span>STIGPASS</div>
+    <span class="spacer"></span>
+    <span class="sync" id="sync"></span>
+    <button class="icon-btn" id="theme-btn" data-act="theme" aria-label="Byt läge"></button>
+    <button class="icon-btn" id="acct-btn" data-act="account" aria-label="Konto" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="8" r="4"/><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6"/></svg></button>
+  </header>
+  <div id="banner"></div>
+  <main id="view"></main>
+</div>
+
+<div class="dock" id="dock">
+  <div class="palette" id="palette" hidden></div>
+  <nav class="tabs" aria-label="Huvudmeny">
+    <button class="tab" data-act="tab" data-tab="pass"><svg viewBox="0 0 24 24" fill="currentColor"><rect x="2" y="13" width="4" height="8" rx="1"/><rect x="7" y="8" width="4" height="13" rx="1"/><rect x="12" y="3" width="4" height="18" rx="1"/><rect x="17" y="10" width="4" height="11" rx="1"/></svg>Pass</button>
+    <button class="tab" data-act="tab" data-tab="ovningar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M12 3 6 19h12L12 3z"/><path d="M8.5 12.5h7M4 21h16"/></svg>Övningar</button>
+    <button class="tab" data-act="tab" data-tab="banor"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="5" cy="18" r="2.2"/><circle cx="19" cy="6" r="2.2"/><path d="M7 18h7a3 3 0 0 0 0-6h-4a3 3 0 0 1 0-6h7"/></svg>Banor</button>
+  </nav>
+</div>
+
+<div id="sheet" hidden></div>
+<div id="sk" hidden></div>
+<div id="toast" hidden role="status"></div>
+<input type="file" id="gpx-in" accept=".gpx,application/gpx+xml,application/xml,text/xml" hidden>
+
+<script>
+"use strict";
+/* ---------- constants ---------- */
+const TYPES = [
+  ['samling','Samling',1,5], ['uppvarmning','Uppvärmning',2,10], ['teknik','Teknik',2,15],
+  ['lek','Lek',2,10], ['stafett','Stafett',3,10], ['intervall','Intervaller',3,10],
+  ['loop','Loop/bana',3,15], ['stationer','Stationer',2,20], ['avslutning','Avslutning',1,5]
+];
+const T = Object.fromEntries(TYPES.map(([k,n,i,m]) => [k,{k,n,i,m}]));
+const INT = {1:'Lugnt',2:'Medel',3:'Fart'};
+const INT_H = {1:38,2:68,3:100};
+const LEVELS = [['grund','Grund'],['medel','Medel'],['avancerad','Avancerad']];
+const LV = Object.fromEntries(LEVELS);
+const FOCUS = ['Balans','Bromsning','Kurvtagning','Blick','Hinder','Uppför','Nedför','Start','Kondition','Samarbete','Lek','Annat'];
+const POIK = {
+  samling:{n:'Samling', c:'#1d74d8', sym:'start'}, ledare:{n:'Ledare', c:'#e5530c', sym:'ledare'},
+  kon:{n:'Koner', c:'#f2a20c', sym:'kon'}, hopp:{n:'Hopp', c:'#9a6a2f', sym:'hopp'},
+  stenkista:{n:'Stenkista', c:'#6b7684', sym:'stenkista'}, hinder:{n:'Hinder', c:'#7a4a1e', sym:'hinder'},
+  utmaning:{n:'Utmaning', c:'#d02f7c', sym:'utmaning'}, uppfor:{n:'Brant uppför', c:'#d3271b', sym:'uppfor'},
+  nedfor:{n:'Brant nedför', c:'#0d958a', sym:'nedfor'}, teknik:{n:'Teknik', c:'#1e9444', sym:'bike'}
+};
+const POI_ALIAS = {svart:'utmaning', tranare:'ledare'};
+const poiK = k => POIK[POI_ALIAS[k] || k] || POIK.teknik;
+/* standard material: tap to add, so a typo can't turn into a separate item */
+const MAT = [
+  {k:'koner', pl:'koner', sg:'kon', d:8, al:['kon','koner','vanliga koner','höga koner']},
+  {k:'platta', pl:'platta koner', sg:'platt kon', d:8, al:['platta koner','platt kon','platta','plattkoner','plattkon','markeringskoner','tallrikskoner']},
+  {k:'rep', pl:'rep', sg:'rep', d:1, al:['rep','snöre','snören','lina','linor']},
+  {k:'pinnar', pl:'pinnar/hinder', sg:'pinne/hinder', d:2, al:['pinnar/hinder','pinne/hinder','pinne','pinnar','hinder','stock','stockar']},
+  {k:'plankor', pl:'plankor', sg:'planka', d:1, al:['planka','plankor']},
+  {k:'stafett', pl:'stafettpinnar', sg:'stafettpinne', d:2, al:['stafettpinne','stafettpinnar']},
+  {k:'flaskor', pl:'vattenflaskor', sg:'vattenflaska', d:2, al:['flaska','flaskor','vattenflaska','vattenflaskor']},
+  {k:'vastar', pl:'västar', sg:'väst', d:6, al:['väst','västar','lagvästar','lagväst']},
+  {k:'tid', pl:'tidtagning', sg:'tidtagning', d:1, one:true, al:['tidtagning','stoppur','tidtagarur','klocka']},
+  {k:'mattband', pl:'måttband', sg:'måttband', d:1, one:true, al:['måttband']}
+];
+const MATK = Object.fromEntries(MAT.map(m => [m.k, m]));
+const cap1 = s => s.charAt(0).toUpperCase() + s.slice(1);
+function lev(a, b){
+  const m = a.length, n = b.length; if (!m || !n) return m + n;
+  let prev = Array.from({length:n + 1}, (_, j) => j);
+  for (let i = 1; i <= m; i++){ const cur = [i];
+    for (let j = 1; j <= n; j++) cur[j] = Math.min(prev[j] + 1, cur[j-1] + 1, prev[j-1] + (a[i-1] === b[j-1] ? 0 : 1));
+    prev = cur; }
+  return prev[n];
+}
+function stdOf(name){
+  const n = String(name || '').toLowerCase().replace(/\s+/g, ' ').trim(); if (!n) return null;
+  for (const m of MAT) if (m.al.includes(n)) return m;
+  let best = null, bd = 9; const lim = n.length >= 9 ? 2 : n.length >= 4 ? 1 : 0;
+  for (const m of MAT) for (const a of m.al){ if (Math.abs(a.length - n.length) > lim) continue; const d = lev(a, n); if (d <= lim && d < bd){ bd = d; best = m; } }
+  return best;
+}
+const DF = '"Barlow Condensed","Arial Narrow",sans-serif', BF = '"Barlow",system-ui,sans-serif';
+const IC = {bg:'#0c1016',card:'#151b25',line:'#283141',fg:'#edf1f7',muted:'#8d98ac',accent:'#ff6a21'};
+const IINT = {1:'#3ccf66', 2:'#ffcb1f', 3:'#ff4a3d'};
+const ITC = {samling:'#8e99b0',uppvarmning:'#3f9cff',teknik:'#35c75d',lek:'#ffcb1f',stafett:'#ff4fa6',intervall:'#ff4a3d',loop:'#b469ff',stationer:'#2bd3c1',avslutning:'#7484a3'};
+const ICONS = {
+  grip:'<svg viewBox="0 0 24 24" fill="currentColor"><circle cx="9" cy="6" r="1.7"/><circle cx="15" cy="6" r="1.7"/><circle cx="9" cy="12" r="1.7"/><circle cx="15" cy="12" r="1.7"/><circle cx="9" cy="18" r="1.7"/><circle cx="15" cy="18" r="1.7"/></svg>',
+  search:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg>',
+  auto:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="8"/><path d="M12 4a8 8 0 0 1 0 16z" fill="currentColor"/></svg>',
+  sun:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>',
+  moon:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z"/></svg>',
+  pen:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 20c4-1 6-6 9-9s5-5 7-5"/></svg>',
+  arrow:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20 19 5M11 5h8v8"/></svg>',
+  cone:'<svg viewBox="0 0 24 24"><path d="M12 3 6.5 19h11L12 3z" fill="#ff7a1a"/><path d="M8.6 13h6.8" stroke="#fff" stroke-width="2"/><rect x="4" y="19" width="16" height="2.4" rx="1" fill="#ff7a1a"/></svg>',
+  bike:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><circle cx="6" cy="16" r="3.6"/><circle cx="18" cy="16" r="3.6"/><path d="M6 16l4-7h6l2 7M10 9l3 7h-2M15 6h2.5"/></svg>',
+  start:'<svg viewBox="0 0 24 24"><path d="M6 21V3" stroke="currentColor" stroke-width="2"/><path d="M7 4h11l-3 4 3 4H7z" fill="#1e9444"/></svg>',
+  finish:'<svg viewBox="0 0 24 24"><path d="M6 21V3" stroke="currentColor" stroke-width="2"/><rect x="7" y="4" width="12" height="8" fill="#fff" stroke="currentColor"/><path d="M7 4h3v2.7H7zM13 4h3v2.7h-3zM10 6.7h3v2.6h-3zM16 6.7h3v2.6h-3zM7 9.3h3V12H7zM13 9.3h3V12h-3z" fill="currentColor"/></svg>',
+  num:'<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="#1d74d8"/><text x="12" y="16.5" text-anchor="middle" font-size="12" font-weight="700" fill="#fff" font-family="sans-serif">1</text></svg>',
+  undo:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 7 4 12l5 5"/><path d="M4 12h10a6 6 0 0 1 0 12h-2" transform="translate(0 -6)"/></svg>',
+  photo:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M4 7h3l2-3h6l2 3h3v12H4z"/><circle cx="12" cy="13" r="3.5"/></svg>',
+  trash:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7h16M10 7V4h4v3M6 7l1 13h10l1-13"/></svg>'
+};
+
+/* ---------- helpers ---------- */
+const $ = (s, r=document) => r.querySelector(s);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+const clone = o => JSON.parse(JSON.stringify(o));
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+const tn = k => T[k]?.n || k || '';
+const nf1 = new Intl.NumberFormat('sv-SE', {maximumFractionDigits:1});
+const today = () => { const d = new Date(); d.setMinutes(d.getMinutes() - d.getTimezoneOffset()); return d.toISOString().slice(0,10); };
+const total = p => (p.blocks || []).reduce((s, b) => s + (+b.min || 0), 0);
+const slug = s => String(s || '').toLowerCase().replace(/[^a-z0-9åäö]+/g, '-').replace(/^-|-$/g, '').slice(0, 40) || 'pass';
+const fmtDist = m => m < 1000 ? `${Math.round(m)} m` : `${nf1.format(m/1000)} km`;
+function fmtDate(p){
+  if (!p.date) return p.time ? `Kl ${p.time}` : 'Inget datum';
+  const d = new Date(p.date + 'T12:00');
+  let s = d.toLocaleDateString('sv-SE', {weekday:'long', day:'numeric', month:'short'});
+  s = s.charAt(0).toUpperCase() + s.slice(1);
+  return p.time ? `${s} kl ${p.time}` : s;
+}
+function blockTitle(b){ const n = tn(b.type); return b.title && b.title !== n ? b.title : n; }
+
+/* material: "10 koner, 2 flaskor". Stations run at the same time, so their material adds up;
+   blocks run one after another, so the pass needs the largest amount any single block uses. */
+function parseMat(s){
+  return String(s || '').split(/[,\n;]+/).map(x => x.trim()).filter(Boolean).map(x => {
+    const m = x.match(/^(\d+)\s*(?:st\.?\s+)?(.+)$/i);
+    const it = m ? {q:+m[1], n:m[2].trim(), raw:x} : {q:0, n:x, raw:x};
+    const sd = stdOf(it.n);
+    if (sd){ it.std = sd; it.k = sd.k; it.q = it.q || 1; } else it.k = it.n.toLowerCase();
+    return it;
+  });
+}
+function splitMat(str){
+  const std = {}, free = [];
+  parseMat(str).forEach(it => { if (it.std) std[it.k] = (std[it.k] || 0) + it.q; else free.push(it.raw); });
+  return {std, free: free.join(', ')};
+}
+function joinMat(std, free){
+  const parts = MAT.filter(m => std[m.k] > 0).map(m => m.one ? m.pl : `${std[m.k]} ${std[m.k] === 1 ? m.sg : m.pl}`);
+  if (free && free.trim()) parts.push(free.trim());
+  return parts.join(', ');
+}
+function blockNeed(b){
+  const need = new Map();
+  const add = s => parseMat(s).forEach(({q, n, k, std}) => {
+    const cur = need.get(k) || {q:0, n, std}; cur.q += q; need.set(k, cur);
+  });
+  add(b.mat);
+  if (b.type === 'stationer') (b.stations || []).forEach(st => add(st.mat));
+  return need;
+}
+function passMat(p){
+  const tot = new Map();
+  (p.blocks || []).forEach(b => blockNeed(b).forEach((v, k) => {
+    const cur = tot.get(k); if (!cur || v.q > cur.q) tot.set(k, {...v});
+  }));
+  const ord = m => m.std ? MAT.indexOf(m.std) : 99;
+  return [...tot.values()].sort((a, b) => ord(a) - ord(b));
+}
+const matStr = m => m.std ? (m.std.one ? m.std.pl : `${m.q} ${m.q === 1 ? m.std.sg : m.std.pl}`) : (m.q ? `${m.q} ${m.n}` : m.n);
+
+/* ---------- routes ---------- */
+const RE = 6371000, rad = d => d * Math.PI / 180;
+function hav(a, b){
+  const dLat = rad(b[0]-a[0]), dLon = rad(b[1]-a[1]);
+  const s = Math.sin(dLat/2)**2 + Math.cos(rad(a[0]))*Math.cos(rad(b[0]))*Math.sin(dLon/2)**2;
+  return 2 * RE * Math.asin(Math.min(1, Math.sqrt(s)));
+}
+/* Climb: light smoothing, then count every rise or drop of at least 1 m.
+   Garmin courses have smooth map heights, so a large threshold would hide small XCC climbs (0.5 m here). */
+function elevGain(pts){
+  const es = pts.map(p => p[2]).filter(e => e != null && !isNaN(e));
+  if (es.length < 2) return {gain:0, loss:0};
+  const sm = es.map((_, i) => { let s = 0, n = 0; for (let k = Math.max(0, i - 1); k <= Math.min(es.length - 1, i + 1); k++){ s += es[k]; n++; } return s / n; });
+  let gain = 0, loss = 0, ref = sm[0];
+  for (const e of sm){ if (e - ref >= .5){ gain += e - ref; ref = e; } else if (ref - e >= .5){ loss += ref - e; ref = e; } }
+  return {gain:Math.round(gain), loss:Math.round(loss)};
+}
+function routeStats(pts){
+  let dist = 0;
+  for (let i = 1; i < pts.length; i++) dist += hav(pts[i-1], pts[i]);
+  return {dist, ...elevGain(pts)};
+}
+const routeGain = r => r.gv === 2 ? (r.gain || 0) : elevGain(r.pts || []).gain;
+function simplify(pts, max = 600){
+  if (pts.length <= 3) return pts;
+  const lat0 = rad(pts.reduce((s, p) => s + p[0], 0) / pts.length);
+  const xy = pts.map(p => [rad(p[1]) * Math.cos(lat0) * RE, rad(p[0]) * RE]);
+  let eps = 1.5, keep;
+  for (let tries = 0; tries < 30; tries++){
+    keep = rdp(xy, eps);
+    let n = 0; for (const k of keep) n += k;
+    if (n <= max) break;
+    eps *= 1.6;
+  }
+  return pts.filter((_, i) => keep[i]);
+}
+function rdp(xy, eps){
+  const n = xy.length, keep = new Uint8Array(n); keep[0] = keep[n-1] = 1;
+  const st = [[0, n-1]];
+  while (st.length){
+    const [a, b] = st.pop();
+    let md = 0, mi = -1;
+    const [ax, ay] = xy[a], [bx, by] = xy[b], dx = bx-ax, dy = by-ay, L = dx*dx + dy*dy;
+    for (let i = a+1; i < b; i++){
+      const [px, py] = xy[i];
+      let t = L ? ((px-ax)*dx + (py-ay)*dy) / L : 0; t = clamp(t, 0, 1);
+      const ex = ax + t*dx - px, ey = ay + t*dy - py, d = ex*ex + ey*ey;
+      if (d > md) { md = d; mi = i; }
+    }
+    if (mi > 0 && md > eps*eps) { keep[mi] = 1; st.push([a, mi], [mi, b]); }
+  }
+  return keep;
+}
+function parseGPX(text){
+  const doc = new DOMParser().parseFromString(text, 'application/xml');
+  if (doc.getElementsByTagName('parsererror').length) throw new Error('parse');
+  const byTag = (el, t) => el.getElementsByTagNameNS('*', t);
+  let nodes = byTag(doc, 'trkpt'); if (!nodes.length) nodes = byTag(doc, 'rtept');
+  const pts = [];
+  for (const n of nodes){
+    const lat = parseFloat(n.getAttribute('lat')), lon = parseFloat(n.getAttribute('lon'));
+    if (isNaN(lat) || isNaN(lon)) continue;
+    const e = byTag(n, 'ele')[0]; const ele = e ? parseFloat(e.textContent) : null;
+    pts.push([lat, lon, ele == null || isNaN(ele) ? null : ele]);
+  }
+  const nm = byTag(doc, 'name')[0];
+  return {name: nm ? nm.textContent.trim() : '', pts};
+}
+function buildRoute(pts, name){
+  const st = routeStats(pts);
+  const simp = simplify(pts).map(p => [+p[0].toFixed(6), +p[1].toFixed(6), p[2] == null ? null : Math.round(p[2]*10)/10]);
+  return {name: name || 'Bana', pts: simp, dist: Math.round(st.dist), gain: st.gain, loss: st.loss, gv: 2, tempo: 12, pois: [], ts: Date.now()};
+}
+const lapMin = r => r && r.dist ? (r.dist / 1000) / (+r.tempo || 12) * 60 : 0;
+const restOf = b => b.rest == null ? 1 : +b.rest;
+function lapsFor(b, r){
+  const lm = lapMin(r); if (!lm) return 0;
+  const rest = restOf(b);
+  return Math.max(1, Math.floor(((+b.min || 0) + rest) / (lm + rest)));
+}
+function lapsText(b, r){
+  const lm = lapMin(r), rest = restOf(b);
+  return `≈ ${lapsFor(b, r)} varv (${nf1.format(lm)} min/varv${rest ? ` + ${nf1.format(rest)} min vila` : ''})`;
+}
+const poiLL = (r, pt) => pt.lat != null ? [pt.lat, pt.lon] : (r.pts[pt.i] ? [r.pts[pt.i][0], r.pts[pt.i][1]] : null);
+const mapsPin = (lat, lon) => `https://maps.google.com/?q=${lat},${lon}`;
+const mapsSat = (lat, lon) => `https://www.google.com/maps/@?api=1&map_action=map&center=${lat},${lon}&zoom=17&basemap=satellite`;
+function isLoop(r){ const p = r.pts; return p.length > 2 && hav(p[0], p[p.length-1]) < 40; }
+function project(r, w, h, pad){
+  const pts = r.pts;
+  const lat0 = rad(pts.reduce((s, p) => s + p[0], 0) / pts.length), cl = Math.cos(lat0);
+  const fx = (lat, lon) => [rad(lon) * cl * RE, -rad(lat) * RE];
+  const pois = (r.pois || []).map(pt => poiLL(r, pt));
+  const all = pts.map(p => fx(p[0], p[1])).concat(pois.filter(Boolean).map(q => fx(q[0], q[1])));
+  let minx = Infinity, miny = Infinity, maxx = -Infinity, maxy = -Infinity;
+  all.forEach(([x, y]) => { minx = Math.min(minx, x); maxx = Math.max(maxx, x); miny = Math.min(miny, y); maxy = Math.max(maxy, y); });
+  const sc = Math.min((w - 2*pad) / ((maxx - minx) || 1), (h - 2*pad) / ((maxy - miny) || 1));
+  const ox = (w - (maxx - minx) * sc) / 2 - minx * sc, oy = (h - (maxy - miny) * sc) / 2 - miny * sc;
+  const toXY = (lat, lon) => { const [x, y] = fx(lat, lon); return [x*sc + ox, y*sc + oy]; };
+  const inv = (px, py) => [-((py - oy) / sc) / RE * 180 / Math.PI, ((px - ox) / sc) / (cl * RE) * 180 / Math.PI];
+  return {pts: pts.map(p => toXY(p[0], p[1])), poiXY: pois.map(q => q ? toXY(q[0], q[1]) : null), sc, toXY, inv};
+}
+function drawRoute(x, r, w, h, c, o = {}){
+  const pad = o.pad ?? 28;
+  x.fillStyle = c.bg; x.fillRect(0, 0, w, h);
+  if (!r.pts || r.pts.length < 2) return null;
+  const pr = project(r, w, h, pad), P = pr.pts;
+  // faint grid
+  x.strokeStyle = c.grid; x.lineWidth = 1;
+  const g = Math.max(24, Math.round(w / 8));
+  for (let gx = g; gx < w; gx += g){ x.beginPath(); x.moveTo(gx, 0); x.lineTo(gx, h); x.stroke(); }
+  for (let gy = g; gy < h; gy += g){ x.beginPath(); x.moveTo(0, gy); x.lineTo(w, gy); x.stroke(); }
+  const lw = o.lw ?? 4;
+  x.lineJoin = 'round'; x.lineCap = 'round';
+  x.beginPath(); P.forEach(([px, py], i) => i ? x.lineTo(px, py) : x.moveTo(px, py));
+  x.strokeStyle = c.casing; x.lineWidth = lw + 4; x.stroke();
+  x.strokeStyle = c.line; x.lineWidth = lw; x.stroke();
+  // direction arrows
+  if (o.arrows !== false){
+    const segs = []; let L = 0;
+    for (let i = 1; i < P.length; i++){ const d = Math.hypot(P[i][0]-P[i-1][0], P[i][1]-P[i-1][1]); segs.push(d); L += d; }
+    const n = o.arrowCount ?? 8, step = L / (n + 1), sz = o.arrowSize ?? 7;
+    let next = step, acc = 0;
+    for (let i = 1; i < P.length && next < L; i++){
+      const d = segs[i-1];
+      while (acc + d >= next && next < L){
+        const t = (next - acc) / (d || 1);
+        const ax = P[i-1][0] + (P[i][0]-P[i-1][0]) * t, ay = P[i-1][1] + (P[i][1]-P[i-1][1]) * t;
+        const ang = Math.atan2(P[i][1]-P[i-1][1], P[i][0]-P[i-1][0]);
+        x.save(); x.translate(ax, ay); x.rotate(ang);
+        x.beginPath(); x.moveTo(sz, 0); x.lineTo(-sz*.8, -sz*.8); x.lineTo(-sz*.3, 0); x.lineTo(-sz*.8, sz*.8); x.closePath();
+        x.fillStyle = c.arrow; x.fill(); x.restore();
+        next += step;
+      }
+      acc += d;
+    }
+  }
+  // scale bar
+  if (o.scale !== false){
+    const mpp = 1 / pr.sc, target = w * 0.22 * mpp;
+    const nice = [5,10,20,25,50,100,200,250,500,1000,2000,5000].reduce((b, v) => Math.abs(v - target) < Math.abs(b - target) ? v : b, 10);
+    const px = nice / mpp, sx = w - pad - px, sy = h - 14;
+    x.strokeStyle = c.fg; x.lineWidth = 2; x.beginPath(); x.moveTo(sx, sy - 5); x.lineTo(sx, sy); x.lineTo(sx + px, sy); x.lineTo(sx + px, sy - 5); x.stroke();
+    x.fillStyle = c.fg; x.font = o.scaleFont ?? `600 11px ${BF}`; x.textAlign = 'center'; x.fillText(nice >= 1000 ? `${nice/1000} km` : `${nice} m`, sx + px/2, sy - 7); x.textAlign = 'left';
+  }
+  const mr = o.markR ?? 9, font = o.markFont ?? `700 ${Math.round(mr*1.1)}px ${BF}`;
+  const mark = (px, py, label) => {
+    x.beginPath(); x.arc(px, py, mr, 0, Math.PI*2); x.fillStyle = c.fg; x.fill();
+    x.lineWidth = Math.max(2, mr/4); x.strokeStyle = c.casing; x.stroke();
+    x.fillStyle = c.bg; x.font = font; x.textAlign = 'center'; x.textBaseline = 'middle'; x.fillText(label, px, py + 1); x.textAlign = 'left'; x.textBaseline = 'alphabetic';
+  };
+  const s = P[0], e = P[P.length-1];
+  if (isLoop(r)) mark(s[0], s[1], 'S');
+  else { mark(e[0], e[1], 'M'); mark(s[0], s[1], 'S'); }
+  if (o.pois !== false) (r.pois || []).forEach((pt, i) => { const q = pr.poiXY[i]; if (q) drawPoiMarker(x, pt.kind, q[0], q[1], o.poiR ?? 14, i + 1, o.sel === i, c.fg); });
+  return pr;
+}
+function drawEle(x, r, w, h, c, o = {}){
+  x.fillStyle = c.bg; x.fillRect(0, 0, w, h);
+  const pts = r.pts || [], hasE = pts.filter(p => p[2] != null).length > 1;
+  const f = o.font ?? 12;
+  if (!hasE){ x.fillStyle = c.muted; x.font = `500 ${f+2}px ${BF}`; x.fillText('Ingen höjddata i filen', 12, h/2); return; }
+  const cum = [0]; for (let i = 1; i < pts.length; i++) cum.push(cum[i-1] + hav(pts[i-1], pts[i]));
+  const es = pts.map(p => p[2]).filter(e => e != null);
+  let lo = Math.min(...es), hi = Math.max(...es); if (hi - lo < 10){ const m = (hi + lo)/2; lo = m - 5; hi = m + 5; }
+  const L = cum[cum.length-1] || 1, padL = f*3.4, padB = f*1.8, padT = f*.8;
+  const X = d => padL + d / L * (w - padL - 8), Y = e => padT + (1 - (e - lo) / (hi - lo)) * (h - padT - padB);
+  x.strokeStyle = c.grid; x.lineWidth = 1;
+  [0, .5, 1].forEach(t => { const y = padT + t * (h - padT - padB); x.beginPath(); x.moveTo(padL, y); x.lineTo(w - 8, y); x.stroke(); });
+  x.beginPath(); let started = false;
+  pts.forEach((p, i) => { if (p[2] == null) return; const px = X(cum[i]), py = Y(p[2]); if (!started){ x.moveTo(px, py); started = true; } else x.lineTo(px, py); });
+  x.save(); x.lineTo(X(L), h - padB); x.lineTo(padL, h - padB); x.closePath(); x.globalAlpha = c.areaAlpha ?? .22; x.fillStyle = c.area; x.fill(); x.restore();
+  x.beginPath(); started = false;
+  pts.forEach((p, i) => { if (p[2] == null) return; const px = X(cum[i]), py = Y(p[2]); if (!started){ x.moveTo(px, py); started = true; } else x.lineTo(px, py); });
+  x.strokeStyle = c.line; x.lineWidth = o.lw ?? 2; x.stroke();
+  x.fillStyle = c.muted; x.font = `500 ${f}px ${BF}`;
+  x.fillText(`${Math.round(hi)} m`, 4, padT + f*.4); x.fillText(`${Math.round(lo)} m`, 4, h - padB + 2);
+  x.fillText('0', padL, h - 4); x.textAlign = 'right'; x.fillText(fmtDist(L), w - 8, h - 4); x.textAlign = 'left';
+}
+
+/* ---------- state ---------- */
+const S = {
+  tab:'pass', edit:null, dirty:false, saving:false, sel:null, lastPass:null,
+  drills:{}, passes:{}, routes:{}, sketches:{},
+  loaded:{drills:false, passes:false, routes:false, sketches:false},
+  filter:{q:'', cat:'', level:'', max:0},
+  routeId:null, poiKind:null, movePoi:null, gpxTarget:null, routeProj:null, confirm:null,
+  sheet:null, readOnly:false, db:null, pendingRender:false, user:null, authReady:false, authMsg:'', denied:false, cfgMissing:false
+};
+let mode = 'auto';
+try { mode = localStorage.getItem('stigpass-mode') || 'auto'; } catch {}
+applyMode();
+
+/* ---------- storage ---------- */
+function write(col, id, data){
+  const doc = {...data}; delete doc.id;
+  S[col] = {...S[col], [id]: {...doc, id}};
+  if (!S.db) return Promise.resolve();
+  try { S.db.collection(col).doc(id).set(doc).catch(writeErr); } catch (e){ writeErr(e); }
+  return Promise.resolve();
+}
+function remove(col, id){
+  const m = {...S[col]}; delete m[id]; S[col] = m;
+  if (!S.db) return;
+  try { S.db.collection(col).doc(id).delete().catch(writeErr); } catch (e){ writeErr(e); }
+}
+function writeErr(e){
+  const code = String(e && e.code || '');
+  if (code.includes('permission-denied')) toast('Ditt konto har inte behörighet att spara här.');
+  else if (code.includes('resource-exhausted')) toast('Gratiskvoten i Firebase är slut för i dag. Försök igen i morgon.');
+  else if (code.includes('invalid-argument')) toast('Det gick inte att spara. Skissen eller banan kan vara för stor.');
+  else toast('Kunde inte spara. Kontrollera nätet och försök igen.');
+  console.warn(e);
+}
+
+function onData(col){
+  if (col === 'passes' && S.edit){
+    const sv = S.passes[S.edit.id];
+    if (sv && !S.dirty && !S.saving && JSON.stringify(sv) !== JSON.stringify(S.edit)) S.edit = clone(sv);
+  }
+  if (col === 'routes') reapplyRoutePatch();
+  if (isTyping()){ S.pendingRender = true; return; }
+  render();
+  if (S.sheet && (S.sheet.kind === 'pickDrill' || S.sheet.kind === 'pickPass') && col !== 'sketches') renderSheet();
+}
+function isTyping(){
+  const a = document.activeElement;
+  return !!a && /^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName) && $('#view').contains(a);
+}
+document.addEventListener('focusout', () => setTimeout(() => { if (S.pendingRender && !isTyping()) render(); }, 0));
+
+let saveT;
+function touchPass(rerender = true){
+  if (!S.edit) return;
+  S.dirty = true; S.edit.updated = Date.now();
+  clearTimeout(saveT); saveT = setTimeout(flushPass, 600);
+  if (rerender) renderEditorParts();
+}
+async function flushPass(){
+  clearTimeout(saveT);
+  if (!S.edit || !S.dirty) return;
+  const p = clone(S.edit); S.dirty = false; S.saving = true;
+  await write('passes', p.id, p);
+  S.saving = false;
+}
+
+/* ---------- theme ---------- */
+function applyMode(){
+  const r = document.documentElement;
+  if (mode === 'auto') r.removeAttribute('data-mode'); else r.setAttribute('data-mode', mode);
+  const b = $('#theme-btn');
+  if (b){ b.innerHTML = ICONS[mode === 'auto' ? 'auto' : mode === 'light' ? 'sun' : 'moon'];
+    b.setAttribute('aria-label', mode === 'auto' ? 'Läge: följer telefonen' : mode === 'light' ? 'Läge: ljust' : 'Läge: mörkt'); }
+}
+const tok = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+try { matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => drawCanvases()); } catch {}
+
+/* ---------- toast ---------- */
+let toastT;
+function toast(msg, label, fn){
+  const t = $('#toast'); t.textContent = ''; const s = document.createElement('span'); s.textContent = msg; t.appendChild(s);
+  if (label && fn){ const b = document.createElement('button'); b.type = 'button'; b.textContent = label;
+    b.addEventListener('click', ev => { ev.stopPropagation(); t.hidden = true; clearTimeout(toastT); fn(); }); t.appendChild(b); }
+  t.hidden = false; clearTimeout(toastT); toastT = setTimeout(() => t.hidden = true, fn ? 6000 : 2800);
+}
+
+/* ---------- render ---------- */
+function renderBanner(){ $('#banner').innerHTML = ''; }
+function render(){
+  S.pendingRender = false;
+  const inApp = !!(S.user && S.db && !S.denied);
+  $('#dock').hidden = !inApp; $('#acct-btn').hidden = !S.user;
+  if (!inApp){
+    $('#view').innerHTML = loginHTML(); $('#palette').hidden = true; $('#app').classList.remove('with-palette');
+    $('#sync').textContent = ''; return;
+  }
+  document.querySelectorAll('.tab').forEach(t => t.toggleAttribute('aria-current', false));
+  const cur = document.querySelector(`.tab[data-tab="${S.tab}"]`); if (cur) cur.setAttribute('aria-current', 'page');
+  const v = $('#view');
+  if (S.tab === 'pass') v.innerHTML = S.edit ? editorHTML() : passListHTML();
+  else if (S.tab === 'ovningar') v.innerHTML = drillsHTML();
+  else v.innerHTML = S.routeId && S.routes[S.routeId] ? routeDetailHTML() : routesHTML();
+  const showPal = S.tab === 'pass' && !!S.edit;
+  $('#palette').hidden = !showPal;
+  $('#app').classList.toggle('with-palette', showPal);
+  if (showPal && !$('#palette').innerHTML) $('#palette').innerHTML = paletteHTML();
+  if (showPal) requestAnimationFrame(() => updEnd($('#palette')));
+  const sync = $('#sync');
+  sync.textContent = !navigator.onLine ? 'Offline' : Object.values(S.loaded).every(Boolean) ? '' : 'Hämtar…';
+  requestAnimationFrame(drawCanvases);
+}
+
+function stripHTML(p, big){
+  const blocks = p.blocks || [], t = total(p), planned = big ? (+p.planned || 0) : 0;
+  const scale = Math.max(t, planned, 1);
+  let h = blocks.map(b => {
+    const sel = big && S.sel === b.id;
+    const n = b.type === 'stationer' ? Math.max(2, (b.stations || []).length) : 0;
+    const inner = n ? Array.from({length:n}, () => '<i></i>').join('') : '';
+    return `<div class="seg${sel ? ' sel' : ''}" ${big ? `data-act="selSeg" data-id="${b.id}"` : ''} style="flex-basis:${(+b.min || 0) / scale * 100}%">
+      <div class="bar t-${esc(b.type)}" style="height:${INT_H[b.int || T[b.type]?.i || 2]}%">${inner}</div>
+      ${sel && !S.readOnly ? `<span class="grip" data-drag="resize" data-id="${b.id}" aria-label="Dra för att ändra tid"></span>` : ''}
+    </div>`;
+  }).join('');
+  if (planned && big) h += `<div class="plan-mark" style="left:${planned / scale * 100}%"><span>${planned} min</span></div>`;
+  return h;
+}
+function ticksHTML(p){
+  const scale = Math.max(total(p), +p.planned || 0, 1), step = scale > 120 ? 30 : 15;
+  let h = '';
+  for (let m = 0; m <= scale; m += step) h += `<span style="left:${m / scale * 100}%">${m}</span>`;
+  return h;
+}
+function totalHTML(p){
+  const t = total(p), pl = +p.planned || 0;
+  let sub = `${(p.blocks || []).length} block`;
+  if (pl){ const d = pl - t; sub += ' · ' + (d >= 0 ? `<span class="ok">${d} min kvar av ${pl}</span>` : `<span class="over">${-d} min över ${pl}</span>`); }
+  return `<div class="tot-num"><b>${t}</b><span>min</span></div><div class="tot-sub">${sub}</div>`;
+}
+
+/* pass list */
+function passListHTML(){
+  const head = `<div class="page-head"><h1>Pass</h1><button class="btn primary" data-act="newPass">+ Nytt pass</button></div>`;
+  if (!S.loaded.passes) return head + `<div class="empty">Hämtar pass…</div>`;
+  const all = Object.values(S.passes);
+  if (!all.length) return head + `<div class="empty"><b>Inga pass ännu</b>Skapa ditt första pass och bygg det med block, som en workout i Zwift.<button class="btn primary" data-act="newPass">+ Nytt pass</button></div>`;
+  const t = today();
+  const up = all.filter(p => (p.date || '') >= t).sort((a, b) => (a.date + (a.time || '')).localeCompare(b.date + (b.time || '')));
+  const past = all.filter(p => (p.date || '') < t).sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+  const card = p => {
+    const key = 'pass:' + p.id;
+    return `<article class="pcard" data-act="openPass" data-id="${p.id}">
+      <div class="pcard-top"><div class="pmeta"><h3>${esc(p.title || 'Pass')}</h3><p>${esc(fmtDate(p))}${p.place ? ' · ' + esc(p.place) : ''}</p></div>
+      <div class="pmin"><b>${total(p)}</b><span>min</span></div></div>
+      <div class="strip mini">${stripHTML(p, false)}</div>
+      ${S.confirm === key
+        ? `<div class="confirm">Ta bort passet? <button class="btn small danger" data-act="delPass" data-id="${p.id}">Ta bort</button><button class="btn small" data-act="cancelConfirm">Behåll</button></div>`
+        : `<div class="pactions"><button class="btn small" data-act="copyPass" data-id="${p.id}">Kopiera</button>${S.readOnly ? '' : `<button class="btn small ghost" data-act="askConfirm" data-key="${key}">Ta bort</button>`}</div>`}
+    </article>`;
+  };
+  return head + (up.length ? `<p class="eyebrow section-label">Kommande</p><div class="plist">${up.map(card).join('')}</div>` : '')
+    + (past.length ? `<p class="eyebrow section-label">Tidigare</p><div class="plist">${past.map(card).join('')}</div>` : '');
+}
+
+/* editor */
+function editorHTML(){
+  const p = S.edit;
+  const routeOpts = Object.values(S.routes).sort((a, b) => (a.name || '').localeCompare(b.name || '', 'sv'));
+  const sk = p.sketchId && S.sketches[p.sketchId];
+  return `<section>
+    <div class="ed-top"><button class="btn small ghost" data-act="closePass">‹ Alla pass</button><span class="spacer"></span><button class="btn primary" data-act="share">Dela passet</button></div>
+    <input id="p-title" class="title-input" data-bind="title" value="${esc(p.title)}" placeholder="Passets namn" aria-label="Passets namn">
+    <div class="when"><input id="p-date" class="field" type="date" data-bind="date" value="${esc(p.date)}" aria-label="Datum"><input id="p-time" class="field" type="time" data-bind="time" value="${esc(p.time)}" aria-label="Tid"></div>
+    <input id="p-place" class="field" data-bind="place" value="${esc(p.place)}" placeholder="Plats, t.ex. elljusspåret" aria-label="Plats">
+    <div class="totalrow" id="ed-total">${totalHTML(p)}</div>
+    <div id="ed-strip"><div class="strip big">${stripHTML(p, true)}</div><div class="ticks">${ticksHTML(p)}</div></div>
+    <div class="blist" id="ed-blocks">${blocksHTML(p)}</div>
+    <div class="matcard" id="ed-mat">${matHTML(p)}</div>
+    <div class="matcard"><label class="eyebrow" for="p-notes">Övrigt</label><textarea id="p-notes" class="field" data-bind="notes" rows="3">${esc(p.notes)}</textarea></div>
+    <details class="more" id="p-more"${S.moreOpen ? ' open' : ''}><summary>Mer om passet</summary><div class="more-body">
+      <div><label class="lbl" for="p-alt">Alternativ plats</label><input id="p-alt" class="field" data-bind="alt" value="${esc(p.alt)}" placeholder="Om området är stängt"></div>
+      <div><label class="lbl" for="p-planned">Passets längd (min)</label><input id="p-planned" class="field" type="number" inputmode="numeric" min="0" data-bind="planned" value="${esc(p.planned)}"></div>
+      <div><label class="lbl" for="p-route">Bana för passet</label><div class="frow"><select id="p-route" class="field" data-bind="routeId" style="flex:1;min-width:0"><option value="">Ingen bana</option>${routeOpts.map(r => `<option value="${r.id}"${p.routeId === r.id ? ' selected' : ''}>${esc(r.name)} · ${fmtDist(r.dist)}</option>`).join('')}</select>${S.readOnly ? '' : '<button class="btn small" data-act="uploadGpx" data-for="pass">+ GPX</button>'}</div></div>
+      <div><span class="lbl">Banskiss för hela passet</span><div class="sk-row">${sk ? `<div class="sk-prev"><img src="${sk.img}" alt="Banskiss"></div>` : ''}
+        <button class="btn small" data-act="drawSketch" data-target="pass">${sk ? 'Ändra skiss' : 'Rita skiss'}</button>${sk ? '<button class="btn small ghost" data-act="rmSketch" data-target="pass">Ta bort</button>' : ''}</div></div>
+    </div></details>
+  </section>`;
+}
+function blocksHTML(p){
+  if (!(p.blocks || []).length) return `<div class="empty"><b>Tomt pass</b>Tryck på en blocktyp längst ner för att lägga till den.</div>`;
+  const hint = !S.readOnly && !S.swipeHintSeen ? '<p class="hint">Dra i prickarna för att flytta. Svep ett block åt höger för att ta bort det.</p>' : '';
+  return p.blocks.map(b => {
+    const sk = b.sketchId && S.sketches[b.sketchId];
+    const extra = [];
+    if (b.type === 'stationer' && (b.stations || []).length) extra.push(`<span>${b.stations.length} stationer · byte var ${+b.rot || 5} min</span>`);
+    if (b.type === 'loop' && b.routeId && S.routes[b.routeId]){ const r = S.routes[b.routeId], lm = lapMin(r);
+      extra.push(`<span>${esc(r.name)} · ${fmtDist(r.dist)}${lm ? ` · ${lapsText(b, r)}` : ''}</span>`); }
+    const mats = [...blockNeed(b).values()].map(matStr);
+    if (mats.length) extra.push(`<span>Material: ${esc(mats.join(', '))}</span>`);
+    const i = b.int || T[b.type]?.i || 2;
+    return `<div class="bwrap" data-id="${b.id}"><div class="bdel" aria-hidden="true">${ICONS.trash}Ta bort</div><article class="bcard${S.sel === b.id ? ' sel' : ''}" data-act="openBlock" data-id="${b.id}">
+      ${S.readOnly ? '' : `<button class="handle" data-drag="reorder" aria-label="Håll och dra för att flytta">${ICONS.grip}</button>`}
+      <span class="bstripe t-${esc(b.type)}"></span>
+      <div class="bbody"><div class="bline">${esc(tn(b.type))} <span class="ipill i${i}"><i></i>${INT[i]}</span></div>
+        <h4>${esc(blockTitle(b))}</h4>${b.desc ? `<p class="bdesc">${esc(b.desc)}</p>` : ''}${extra.length ? `<div class="bextra">${extra.join('')}</div>` : ''}</div>
+      ${b.type === 'loop' && b.routeId && S.routes[b.routeId] ? `<div class="thumb"><canvas data-route="${b.routeId}" aria-hidden="true"></canvas></div>` : sk ? `<div class="thumb"><img src="${sk.img}" alt=""></div>` : ''}
+      <div class="bmin"><b>${+b.min || 0}</b><span>min</span></div>
+    </article></div>`;
+  }).join('') + hint;
+}
+function matHTML(p){
+  const m = passMat(p);
+  return `<p class="eyebrow">Tränarna tar med</p>
+    ${m.length ? `<ul class="matlist">${m.map(x => `<li>${esc(matStr(x))}</li>`).join('')}</ul>` : '<p class="hint">Inget material angivet. Skriv t.ex. ”10 koner” i ett block så räknas det ihop här.</p>'}
+    ${p.alt ? `<p class="eyebrow">Alternativ plats</p><p>${esc(p.alt)}</p>` : ''}`;
+}
+function renderEditorParts(){
+  if (!S.edit || S.tab !== 'pass') return;
+  const set = (s, h) => { const e = $(s); if (e) e.innerHTML = h; };
+  set('#ed-total', totalHTML(S.edit));
+  set('#ed-strip', `<div class="strip big">${stripHTML(S.edit, true)}</div><div class="ticks">${ticksHTML(S.edit)}</div>`);
+  set('#ed-blocks', blocksHTML(S.edit));
+  set('#ed-mat', matHTML(S.edit));
+  requestAnimationFrame(drawCanvases);
+}
+function paletteHTML(){
+  return TYPES.map(([k, n]) => `<button class="pal" data-act="addBlock" data-type="${k}"><span class="sw t-${k}"></span>${n}<span class="plus">+</span></button>`).join('')
+    + `<button class="pal" data-act="pickDrill" data-new="1"><span class="sw" style="background:var(--fg)"></span>Från övningsbanken<span class="plus">+</span></button>`;
+}
+
+/* drills */
+function filteredDrills(f, onlyType){
+  const q = (f.q || '').trim().toLowerCase();
+  return Object.values(S.drills).filter(d =>
+    (!f.cat || d.cat === f.cat) && (!onlyType || d.cat === onlyType) && (!f.level || d.level === f.level) &&
+    (!f.max || (+d.min || 0) <= f.max) &&
+    (!q || [d.title, d.desc, d.mat, d.focus, d.easier, d.harder, tn(d.cat), LV[d.level]].join(' ').toLowerCase().includes(q))
+  ).sort((a, b) => (a.title || '').localeCompare(b.title || '', 'sv'));
+}
+function drillCard(d, act = 'openDrill', withAdd = true){
+  const sk = d.sketchId && S.sketches[d.sketchId];
+  const meta = [d.focus, `${+d.min || 0} min`, d.mat].filter(Boolean).join(' · ');
+  return `<article class="dcard" data-act="${act}" data-id="${d.id}">
+    ${sk ? `<div class="dthumb"><img src="${sk.img}" alt=""></div>` : `<div class="dthumb none" aria-hidden="true"><i class="t-${esc(d.cat)}" style="height:40%"></i><i class="t-${esc(d.cat)}" style="height:75%"></i><i class="t-${esc(d.cat)}" style="height:55%"></i></div>`}
+    <div class="dbody"><div class="tagrow"><span class="dot t-${esc(d.cat)}"></span>${esc(tn(d.cat))}${d.level ? ` · ${esc(LV[d.level])}` : ''}</div>
+      <h4>${esc(d.title || 'Övning')}</h4><p class="dmeta">${esc(meta)}</p></div>
+    ${withAdd && !S.readOnly ? `<button class="btn small" data-act="drillToPass" data-id="${d.id}" aria-label="Lägg i pass">+ Pass</button>` : ''}
+  </article>`;
+}
+function drillsHTML(){
+  const f = S.filter;
+  return `<div class="page-head"><h1>Övningar</h1>${S.readOnly ? '' : '<button class="btn primary" data-act="newDrill">+ Ny övning</button>'}</div>
+    <div class="search">${ICONS.search}<input id="f-q" class="field" data-filter="q" value="${esc(f.q)}" placeholder="Sök övning, material, fokus…" aria-label="Sök"></div>
+    <div class="filters">
+      <div class="chips wrap" role="group" aria-label="Kategori"><button class="chip" data-act="fCat" data-k="" aria-pressed="${!f.cat}">Alla</button>
+        ${TYPES.filter(([k]) => k !== 'stationer').map(([k, n]) => `<button class="chip" data-act="fCat" data-k="${k}" aria-pressed="${f.cat === k}"><span class="dot t-${k}"></span>${n}</button>`).join('')}</div>
+      <div class="frow"><div class="chips wrap" role="group" aria-label="Nivå" style="flex:1"><button class="chip" data-act="fLevel" data-k="" aria-pressed="${!f.level}">Alla nivåer</button>
+        ${LEVELS.map(([k, n]) => `<button class="chip" data-act="fLevel" data-k="${k}" aria-pressed="${f.level === k}">${n}</button>`).join('')}</div>
+        <select id="f-max" data-filter="max" aria-label="Max tid"><option value="0">All tid</option>${[5,10,15,20,30].map(m => `<option value="${m}"${f.max === m ? ' selected' : ''}>≤ ${m} min</option>`).join('')}</select></div>
+    </div>
+    <div id="drill-list">${drillListHTML()}</div>`;
+}
+function drillListHTML(){
+  if (!S.loaded.drills) return `<div class="empty">Hämtar övningar…</div>`;
+  if (!Object.keys(S.drills).length) return `<div class="empty"><b>Övningsbanken är tom</b>Lägg in övningar du gillar, med tid, material och en ritad skiss.${S.readOnly ? '' : '<button class="btn primary" data-act="newDrill">+ Ny övning</button>'}</div>`;
+  const list = filteredDrills(S.filter);
+  if (!list.length) return `<div class="empty">Inga övningar matchar filtret.</div>`;
+  return `<p class="count">${list.length} övning${list.length === 1 ? '' : 'ar'}</p><div class="dlist">${list.map(d => drillCard(d)).join('')}</div>`;
+}
+
+/* routes */
+function routesHTML(){
+  const head = `<div class="page-head"><h1>Banor</h1>${S.readOnly ? '' : '<button class="btn primary" data-act="uploadGpx">+ Ladda upp GPX</button>'}</div>`;
+  if (!S.loaded.routes) return head + `<div class="empty">Hämtar banor…</div>`;
+  const list = Object.values(S.routes).sort((a, b) => (b.ts || 0) - (a.ts || 0));
+  if (!list.length) return head + `<div class="empty"><b>Inga banor ännu</b>Rita banan i Garmin Connect, exportera den som GPX och ladda upp filen här. Då ser du längd, höjd, varvtid och hur banan går.${S.readOnly ? '' : '<button class="btn primary" data-act="uploadGpx">+ Ladda upp GPX</button>'}</div>`;
+  return head + `<div class="rlist">${list.map(r => `<article class="rcard" data-act="openRoute" data-id="${r.id}">
+    <canvas data-route="${r.id}" width="84" height="84" aria-hidden="true"></canvas>
+    <div class="dbody"><h4>${esc(r.name)}</h4><p class="dmeta">${fmtDist(r.dist)} · ${routeGain(r)} hm${lapMin(r) ? ` · ≈ ${nf1.format(lapMin(r))} min/varv` : ''}</p></div></article>`).join('')}</div>`;
+}
+function routeDetailHTML(){
+  const r = S.routes[S.routeId], key = 'route:' + r.id;
+  return `<section>
+    <div class="ed-top"><button class="btn small ghost" data-act="closeRoute">‹ Alla banor</button><span class="spacer"></span><button class="btn small" data-act="routeImage">Spara ruttbild</button></div>
+    <input class="title-input" data-rb="name" value="${esc(r.name)}" aria-label="Banans namn" ${S.readOnly ? 'readonly' : ''}>
+    <div class="stats"><div class="stat"><b>${fmtDist(r.dist)}</b><span>Längd</span></div><div class="stat"><b>${routeGain(r)} m</b><span>Upp</span></div><div class="stat"><b id="lap-out">${nf1.format(lapMin(r))}</b><span>Min/varv</span></div></div>
+    <div class="tempo"><label for="r-tempo">Gruppens tempo</label><input id="r-tempo" class="field mini" type="number" inputmode="decimal" min="3" max="40" step="0.5" data-rb="tempo" value="${esc(r.tempo || 12)}"><span>km/h</span></div>
+    <div class="mapbox"><canvas id="route-canvas" class="${S.poiKind || S.movePoi != null ? 'adding' : ''}" aria-label="Karta över banan"></canvas></div>
+    ${r.pts && r.pts[0] ? `<p style="margin-top:8px"><a class="sat" href="${mapsSat(r.pts[0][0], r.pts[0][1])}" target="_blank" rel="noopener">Visa platsen på satellitkarta ↗</a></p>` : ''}
+    ${S.readOnly ? '' : `<p class="lbl" style="margin-top:12px">${S.poiKind ? `Tryck på kartan där ${esc(poiK(S.poiKind).n.toLowerCase())} ska ligga, på eller bredvid banan.`
+      : S.movePoi != null ? `Tryck där punkt ${S.movePoi + 1} ska ligga. Tryck på punkten igen för att avbryta.`
+      : 'Lägg till en punkt. Tryck på en punkt i kartan för att flytta den.'}</p>
+    <div class="chips wrap">${Object.entries(POIK).map(([k, v]) => `<button class="chip" data-act="poiKind" data-k="${k}" aria-pressed="${S.poiKind === k}"><img src="${poiIcon(k)}" alt="">${esc(v.n)}</button>`).join('')}</div>`}
+    <div class="poilist">${(r.pois || []).map((pt, i) => `<div class="poi"><img class="poi-ic" src="${poiIcon(pt.kind, i + 1)}" alt="Punkt ${i + 1}">
+      <input class="field" data-poi="${i}" value="${esc(pt.note)}" placeholder="${esc(poiK(pt.kind).n)}" ${S.readOnly ? 'readonly' : ''}>
+      ${S.readOnly ? '' : `<button class="icon-btn" data-act="delPoi" data-i="${i}" aria-label="Ta bort punkt">${ICONS.trash}</button>`}</div>`).join('')}</div>
+    <p class="eyebrow section-label">Höjdprofil</p>
+    <div class="mapbox"><canvas id="ele-canvas" aria-label="Höjdprofil"></canvas></div>
+    ${S.readOnly ? '' : `<div class="actions" style="margin-top:18px">${S.confirm === key
+      ? `<span class="confirm">Ta bort banan? <button class="btn small danger" data-act="delRoute">Ta bort</button><button class="btn small" data-act="cancelConfirm">Behåll</button></span>`
+      : `<button class="btn small ghost" data-act="askConfirm" data-key="${key}">Ta bort bana</button>`}</div>`}
+  </section>`;
+}
+
+/* canvases */
+function fitCanvas(cv){
+  const r = cv.getBoundingClientRect(), dpr = window.devicePixelRatio || 1;
+  const w = Math.max(1, r.width), h = Math.max(1, r.height);
+  cv.width = Math.round(w * dpr); cv.height = Math.round(h * dpr);
+  const x = cv.getContext('2d'); x.setTransform(dpr, 0, 0, dpr, 0, 0);
+  return {x, w, h};
+}
+function screenColors(){
+  return {bg:tok('--surface'), grid:tok('--line'), casing:tok('--surface'), line:tok('--accent'), arrow:tok('--fg'), fg:tok('--fg'), muted:tok('--muted'), area:tok('--surface-2')};
+}
+function drawCanvases(){
+  const c = screenColors();
+  document.querySelectorAll('canvas[data-route]').forEach(cv => {
+    const r = S.routes[cv.dataset.route]; if (!r) return;
+    const {x, w, h} = fitCanvas(cv);
+    drawRoute(x, r, w, h, {...c, bg:tok('--surface-2')}, {pad:8, lw:2.5, arrows:false, pois:false, scale:false, markR:4});
+  });
+  const rc = $('#route-canvas');
+  if (rc && S.routeId && S.routes[S.routeId]){
+    const {x, w, h} = fitCanvas(rc);
+    S.routeProj = drawRoute(x, S.routes[S.routeId], w, h, c, {pad:30, lw:4, markR:11, poiR:15, sel:S.movePoi});
+  }
+  const ec = $('#ele-canvas');
+  if (ec && S.routeId && S.routes[S.routeId]){
+    const {x, w, h} = fitCanvas(ec);
+    drawEle(x, S.routes[S.routeId], w, h, {...c, area:tok('--accent'), areaAlpha:.22});
+  }
+}
+let resizeT; window.addEventListener('resize', () => { clearTimeout(resizeT); resizeT = setTimeout(drawCanvases, 120); });
+
+/* ---------- sheet ---------- */
+function openSheet(o){ S.sheet = o; renderSheet(); }
+function closeSheet(){
+  const k = S.sheet?.kind; S.sheet = null; renderSheet();
+  if (k === 'block') flushPass();
+}
+function renderSheet(){
+  const host = $('#sheet');
+  if (!S.sheet){ host.hidden = true; host.innerHTML = ''; document.body.classList.remove('noscroll'); return; }
+  const body = sheetBody();
+  if (body == null){ S.sheet = null; return renderSheet(); }
+  const prevScroll = host.querySelector('.sheet-body')?.scrollTop || 0;
+  const same = host.dataset.kind === S.sheet.kind;
+  host.dataset.kind = S.sheet.kind;
+  host.hidden = false; document.body.classList.add('noscroll');
+  host.innerHTML = `<div class="backdrop" data-act="closeSheet"></div><div class="sheet${same ? '' : ' anim'}" role="dialog" aria-modal="true"><div class="sheet-grab" data-drag="sheet"><span></span></div><div class="sheet-body">${body}</div></div>`;
+  if (same) host.querySelector('.sheet-body').scrollTop = prevScroll;
+}
+function curBlock(){ return S.edit && S.sheet && (S.edit.blocks || []).find(b => b.id === S.sheet.id); }
+function sheetBody(){
+  const sh = S.sheet;
+  if (sh.kind === 'block') return blockSheet();
+  if (sh.kind === 'drill') return drillSheet();
+  if (sh.kind === 'pickDrill') return pickDrillSheet();
+  if (sh.kind === 'pickPass') return pickPassSheet();
+  if (sh.kind === 'share') return shareSheet();
+  if (sh.kind === 'account') return S.user ? accountHTML() : null;
+  if (sh.kind === 'privacy') return privacyHTML();
+  if (sh.kind === 'image') return `<header class="sh-head"><h2>Ruttbild</h2><button class="icon-btn" data-act="closeSheet" aria-label="Stäng">✕</button></header>
+    <div class="imgcard"><img src="${sh.url}" alt="${esc(sh.label)}"></div><p class="hint">Håll fingret på bilden för att spara eller dela den.</p>`;
+  return null;
+}
+function skField(id, target, extra = ''){
+  const sk = id && S.sketches[id];
+  return `<div><span class="lbl">Skiss</span><div class="sk-row">${sk ? `<div class="sk-prev"><img src="${sk.img}" alt="Skiss"></div>` : ''}
+    <button class="btn small" data-act="drawSketch" data-target="${target}" ${extra}>${sk ? 'Ändra skiss' : 'Rita skiss'}</button>
+    ${sk ? `<button class="btn small ghost" data-act="rmSketch" data-target="${target}" ${extra}>Ta bort</button>` : ''}</div></div>`;
+}
+function blockSheet(){
+  const b = curBlock(); if (!b) return null;
+  const i = b.int || T[b.type]?.i || 2, ro = S.readOnly ? 'disabled' : '';
+  const routes = Object.values(S.routes);
+  const r = b.routeId && S.routes[b.routeId], lm = lapMin(r);
+  const idx = S.edit.blocks.indexOf(b);
+  return `<header class="sh-head"><span class="dot t-${esc(b.type)}"></span><h2>${esc(tn(b.type))}</h2><button class="icon-btn" data-act="closeSheet" aria-label="Stäng">✕</button></header>
+    <div><span class="lbl">Typ</span><div class="chips wrap">${TYPES.map(([k, n]) => `<button class="chip" data-act="setType" data-k="${k}" aria-pressed="${b.type === k}" ${ro}><span class="dot t-${k}"></span>${n}</button>`).join('')}</div></div>
+    <div><label class="lbl" for="b-title">Rubrik</label><input id="b-title" class="field" data-bb="title" value="${esc(b.title)}" ${ro}></div>
+    <div class="grid2">
+      <div><span class="lbl">Tid</span><div class="stepper"><button class="btn small" data-act="minStep" data-d="-5" ${ro}>−5</button><input id="b-min" class="field" type="number" inputmode="numeric" min="1" max="180" data-bb="min" value="${+b.min || 0}" aria-label="Minuter" ${ro}><button class="btn small" data-act="minStep" data-d="5" ${ro}>+5</button></div></div>
+      <div><span class="lbl">Intensitet</span><div class="seg3">${[1,2,3].map(n => `<button class="iN i${n}" data-act="setInt" data-i="${n}" aria-pressed="${i === n}" ${ro}>${INT[n]}</button>`).join('')}</div></div>
+    </div>
+    ${b.type === 'stationer' ? stationsHTML(b) : ''}
+    <div><label class="lbl" for="b-desc">Upplägg</label><textarea id="b-desc" class="field" data-bb="desc" rows="4" placeholder="Hur övningen går till" ${ro}>${esc(b.desc)}</textarea></div>
+    <div><span class="lbl">Material</span>${matPickHTML('b', b.mat)}</div>
+    ${b.type === 'loop' ? `<div><label class="lbl" for="b-route">Bana</label><div class="frow"><select id="b-route" class="field" data-bb="routeId" style="flex:1;min-width:0" ${ro}><option value="">Ingen bana</option>${routes.map(x => `<option value="${x.id}"${b.routeId === x.id ? ' selected' : ''}>${esc(x.name)} · ${fmtDist(x.dist)}</option>`).join('')}</select>${S.readOnly ? '' : '<button class="btn small" data-act="uploadGpx" data-for="block">+ GPX</button>'}</div>
+      <div class="frow" style="margin-top:12px"><label class="lbl" for="b-rest" style="flex:1;margin:0">Vila mellan varv</label><div class="stepper"><button class="btn small" data-act="restStep" data-d="-0.5" ${ro}>−</button><input id="b-rest" class="field mini" type="number" inputmode="decimal" min="0" max="10" step="0.5" data-bb="rest" value="${restOf(b)}" aria-label="Vila mellan varv i minuter" ${ro}><button class="btn small" data-act="restStep" data-d="0.5" ${ro}>+</button></div><span class="hint" style="margin:0">min</span></div>
+      <p class="hint" id="b-laps">${r && lm ? `${lapsText(b, r)} på ${+b.min || 0} min i ${nf1.format(+r.tempo || 12)} km/h.` : 'Välj en bana, eller ladda upp en GPX-fil från Garmin Connect.'}</p></div>` : ''}
+    ${skField(b.sketchId, 'block')}
+    ${S.readOnly ? '' : `<div class="actions">
+      <button class="btn small" data-act="pickDrill">Hämta från banken</button>
+      <button class="btn small" data-act="blockToDrill">Spara som övning</button></div>
+    <div class="actions">
+      <button class="btn small" data-act="moveBlock" data-d="-1" ${idx === 0 ? 'disabled' : ''}>↑ Flytta upp</button>
+      <button class="btn small" data-act="moveBlock" data-d="1" ${idx === S.edit.blocks.length - 1 ? 'disabled' : ''}>↓ Flytta ner</button>
+      <button class="btn small" data-act="dupBlock">Kopiera</button>
+      ${sh_confirm('block') ? `<span class="confirm">Ta bort blocket? <button class="btn small danger" data-act="delBlock">Ta bort</button><button class="btn small" data-act="sheetConfirm" data-v="">Behåll</button></span>`
+        : `<button class="btn small danger" data-act="sheetConfirm" data-v="block">Ta bort</button>`}
+    </div>`}
+    <button class="btn primary" data-act="closeSheet">Klar</button>`;
+}
+const sh_confirm = v => S.sheet && S.sheet.confirm === v;
+function matPickHTML(sc, str){
+  const ro = S.readOnly, {std, free} = splitMat(str);
+  const chosen = MAT.filter(m => std[m.k] > 0), rest = MAT.filter(m => !(std[m.k] > 0));
+  const dis = ro ? 'disabled' : '';
+  return `<div class="matpick"><div class="chips wrap">${chosen.map(m => `<span class="mchip">${esc(cap1(m.pl))}${m.one
+      ? `<button data-act="matStep" data-sc="${sc}" data-k="${m.k}" data-d="-1" aria-label="Ta bort ${esc(m.pl)}" ${dis}>✕</button>`
+      : `<button data-act="matStep" data-sc="${sc}" data-k="${m.k}" data-d="-1" aria-label="En mindre" ${dis}>−</button><b>${std[m.k]}</b><button data-act="matStep" data-sc="${sc}" data-k="${m.k}" data-d="1" aria-label="En till" ${dis}>+</button>`}</span>`).join('')}
+    ${ro ? '' : rest.map(m => `<button class="chip add" data-act="matAdd" data-sc="${sc}" data-k="${m.k}">+ ${esc(cap1(m.pl))}</button>`).join('')}</div>
+    <input class="field" data-matfree="${sc}" data-std="${esc(JSON.stringify(std))}" value="${esc(free)}" placeholder="Annat material, t.ex. 1 pump" aria-label="Annat material" ${ro ? 'readonly' : ''}></div>`;
+}
+function matGet(sc){
+  if (sc === 'd') return S.sheet?.draft?.mat || '';
+  const b = curBlock(); if (!b) return '';
+  return sc === 'b' ? (b.mat || '') : (b.stations?.[+sc.slice(2)]?.mat || '');
+}
+function matSet(sc, v){
+  if (sc === 'd'){ if (S.sheet?.draft) S.sheet.draft.mat = v; return; }
+  const b = curBlock(); if (!b) return;
+  if (sc === 'b') b.mat = v; else { const st = b.stations?.[+sc.slice(2)]; if (st) st.mat = v; }
+  touchPass();
+}
+function stationsHTML(b){
+  const st = b.stations || [], rot = +b.rot || 5, ro = S.readOnly ? 'disabled' : '';
+  const sug = st.length * rot;
+  return `<div class="stations"><div class="frow"><span class="lbl" style="flex:1;margin:0">Stationer</span><label for="b-rot" class="hint" style="margin:0">Byte var</label><input id="b-rot" class="field mini" type="number" inputmode="numeric" min="1" data-bb="rot" value="${rot}" ${ro}><span class="hint" style="margin:0">min</span></div>
+    ${st.map((s, i) => `<div class="station"><div class="st-head"><b>Station ${i + 1}</b>${S.readOnly ? '' : `<button class="btn small" data-act="pickDrill" data-station="${i}">Från banken</button><button class="icon-btn" data-act="delStation" data-i="${i}" aria-label="Ta bort station">✕</button>`}</div>
+      <input class="field" data-st="title" data-i="${i}" value="${esc(s.title)}" placeholder="Vad gör man här?" aria-label="Station ${i + 1}" ${ro}>
+      <textarea class="field" data-st="desc" data-i="${i}" rows="2" placeholder="Upplägg" ${ro}>${esc(s.desc)}</textarea>
+      <span class="lbl" style="margin:0">Material</span>${matPickHTML('st' + i, s.mat)}</div>`).join('')}
+    ${S.readOnly ? '' : `<div class="actions"><button class="btn small" data-act="addStation">+ Lägg till station</button>
+      ${st.length && sug !== +b.min ? `<button class="btn small" data-act="useRot">Sätt tiden till ${st.length} × ${rot} = ${sug} min</button>` : ''}</div>`}
+  </div>`;
+}
+function drillSheet(){
+  const d = S.sheet.draft, ro = S.readOnly ? 'disabled' : '';
+  return `<header class="sh-head"><span class="dot t-${esc(d.cat)}"></span><h2>${S.sheet.isNew ? 'Ny övning' : 'Övning'}</h2><button class="icon-btn" data-act="closeSheet" aria-label="Stäng">✕</button></header>
+    <div><label class="lbl" for="d-title">Namn</label><input id="d-title" class="field" data-dd="title" value="${esc(d.title)}" placeholder="t.ex. Bromszon" ${ro}></div>
+    <div><span class="lbl">Kategori</span><div class="chips wrap">${TYPES.filter(([k]) => k !== 'stationer').map(([k, n]) => `<button class="chip" data-act="ddCat" data-k="${k}" aria-pressed="${d.cat === k}" ${ro}><span class="dot t-${k}"></span>${n}</button>`).join('')}</div></div>
+    <div class="grid2">
+      <div><label class="lbl" for="d-focus">Fokus</label><select id="d-focus" class="field" data-dd="focus" ${ro}><option value="">Välj fokus</option>${FOCUS.map(f => `<option${d.focus === f ? ' selected' : ''}>${f}</option>`).join('')}</select></div>
+      <div><span class="lbl">Tid</span><div class="stepper"><button class="btn small" data-act="ddMin" data-d="-5" ${ro}>−5</button><input id="d-min" class="field" type="number" inputmode="numeric" min="1" data-dd="min" value="${+d.min || 0}" aria-label="Minuter" ${ro}><button class="btn small" data-act="ddMin" data-d="5" ${ro}>+5</button></div></div>
+    </div>
+    <div><span class="lbl">Nivå</span><div class="seg3">${LEVELS.map(([k, n]) => `<button data-act="ddLevel" data-k="${k}" aria-pressed="${d.level === k}" ${ro}>${n}</button>`).join('')}</div></div>
+    <div><span class="lbl">Material</span>${matPickHTML('d', d.mat)}</div>
+    <div><label class="lbl" for="d-desc">Upplägg</label><textarea id="d-desc" class="field" data-dd="desc" rows="4" ${ro}>${esc(d.desc)}</textarea></div>
+    <div class="grid2">
+      <div><label class="lbl" for="d-easier">Lättare variant</label><textarea id="d-easier" class="field" data-dd="easier" rows="2" ${ro}>${esc(d.easier)}</textarea></div>
+      <div><label class="lbl" for="d-harder">Svårare variant</label><textarea id="d-harder" class="field" data-dd="harder" rows="2" ${ro}>${esc(d.harder)}</textarea></div>
+    </div>
+    <div><label class="lbl" for="d-safety">Säkerhet</label><input id="d-safety" class="field" data-dd="safety" value="${esc(d.safety)}" placeholder="Vad ska man tänka på?" ${ro}></div>
+    ${skField(d.sketchId, 'drill')}
+    ${S.readOnly ? '' : `<div class="actions"><button class="btn primary" data-act="saveDrill">Spara övningen</button>
+      ${S.sheet.isNew ? '' : `<button class="btn" data-act="drillToPass" data-id="${d.id}">+ Lägg i pass</button>`}
+      ${S.sheet.isNew ? '' : sh_confirm('drill') ? `<span class="confirm">Ta bort övningen? <button class="btn small danger" data-act="delDrill">Ta bort</button><button class="btn small" data-act="sheetConfirm" data-v="">Behåll</button></span>`
+        : `<button class="btn ghost danger" data-act="sheetConfirm" data-v="drill">Ta bort</button>`}</div>`}`;
+}
+function pickDrillSheet(){
+  const sh = S.sheet;
+  const target = sh.station != null ? 'en station' : sh.isNew ? 'ett nytt block' : 'blocket';
+  const b = curBlock();
+  const onlyType = !sh.all && !sh.isNew && sh.station == null && b ? b.type : '';
+  const list = filteredDrills({q: sh.q || ''}, onlyType);
+  return `<header class="sh-head"><h2>Övningsbanken</h2><button class="icon-btn" data-act="pickBack" aria-label="Tillbaka">✕</button></header>
+    <p class="hint" style="margin:0">Välj en övning till ${target}. Tid, material och skiss följer med.</p>
+    <div class="search">${ICONS.search}<input id="pick-q" class="field" data-pq="1" value="${esc(sh.q || '')}" placeholder="Sök…" aria-label="Sök övning"></div>
+    ${onlyType ? `<button class="chip" data-act="pickAll" aria-pressed="false">Visar ${esc(tn(onlyType))} · visa alla</button>` : ''}
+    <div class="picklist" id="pick-list">${pickListHTML(list)}</div>`;
+}
+function pickListHTML(list){
+  if (!list.length) return `<div class="empty">Inga övningar hittades.</div>`;
+  return list.map(d => drillCard(d, 'choosePick', false)).join('');
+}
+function pickPassSheet(){
+  const d = S.drills[S.sheet.drillId];
+  const t = today();
+  const list = Object.values(S.passes).sort((a, b) => ((b.date || '') >= t) - ((a.date || '') >= t) || (a.date || '').localeCompare(b.date || ''));
+  return `<header class="sh-head"><h2>Lägg i pass</h2><button class="icon-btn" data-act="closeSheet" aria-label="Stäng">✕</button></header>
+    <p class="hint" style="margin:0">${esc(d ? d.title : 'Övningen')} läggs sist i passet du väljer.</p>
+    <button class="btn primary" data-act="pickPassNew">+ Nytt pass med övningen</button>
+    <div class="plist">${list.map(p => `<article class="pcard" data-act="pickPassFor" data-id="${p.id}"><div class="pcard-top"><div class="pmeta"><h3>${esc(p.title)}</h3><p>${esc(fmtDate(p))}</p></div><div class="pmin"><b>${total(p)}</b><span>min</span></div></div><div class="strip mini">${stripHTML(p, false)}</div></article>`).join('')}</div>`;
+}
+function shareSheet(){
+  const sh = S.sheet, p = S.edit; if (!p) return null;
+  const text = buildText(p, sh.mode === 'wa');
+  const imgs = sh.images;
+  return `<header class="sh-head"><h2>Dela passet</h2><button class="icon-btn" data-act="closeSheet" aria-label="Stäng">✕</button></header>
+    <p class="hint" style="margin:0">Skicka bilderna och texten i tränargruppen. Allt går att läsa utan appen.</p>
+    <p class="eyebrow">1. Bilder</p>
+    ${imgs && imgs.length > 1 && canShareFiles(imgs) ? '<button class="btn primary" data-act="shareAll">Dela alla bilder</button>' : ''}
+    <div class="imgs">${!imgs ? '<div class="empty">Skapar bilder…</div>' : imgs.map((im, i) => `<div class="imgcard"><div class="imgcard-head"><b>${esc(im.label)}</b><span class="actions">${canShareFiles([im]) ? `<button class="btn small primary" data-act="saveImg" data-i="${i}">Dela</button>` : ''}<button class="btn small" data-act="dlImg" data-i="${i}">Spara</button></span></div><img src="${im.url}" alt="${esc(im.label)}"></div>`).join('')}</div>
+    <p class="eyebrow">2. Text</p>
+    <div class="seg3" style="grid-template-columns:1fr 1fr"><button data-act="shareMode" data-m="wa" aria-pressed="${sh.mode === 'wa'}">WhatsApp</button><button data-act="shareMode" data-m="ms" aria-pressed="${sh.mode !== 'wa'}">Messenger</button></div>
+    <textarea id="share-text" class="field share-text" readonly aria-label="Text att dela">${esc(text)}</textarea>
+    <div class="actions">${navigator.share ? '<button class="btn primary" data-act="shareText">Dela texten</button>' : ''}<button class="btn${navigator.share ? '' : ' primary'}" data-act="copyText">Kopiera texten</button></div>`;
+}
+
+/* ---------- share text ---------- */
+function routesOf(p){
+  const ids = [p.routeId, ...(p.blocks || []).filter(b => b.type === 'loop').map(b => b.routeId)].filter(Boolean);
+  return [...new Set(ids)].map(id => S.routes[id]).filter(Boolean);
+}
+function buildText(p, wa){
+  const B = s => wa ? `*${s}*` : s;
+  const L = [];
+  L.push(`🚵 ${B(p.title || 'Pass')}`);
+  L.push(`📅 ${fmtDate(p)}`);
+  if (p.place) L.push(`📍 ${p.place}`);
+  if (p.alt) L.push(`🔁 Alternativ plats: ${p.alt}`);
+  L.push(`⏱ ${total(p)} min`);
+  const m = passMat(p);
+  if (m.length) L.push('', `🧰 ${B('Tränarna tar med:')} ${m.map(matStr).join(', ')}`);
+  L.push('', B('Upplägg'));
+  (p.blocks || []).forEach((b, i) => {
+    const n = tn(b.type), t = blockTitle(b);
+    L.push(`${i + 1}. ${t === n ? n : `${n}: ${t}`} – ${+b.min || 0} min`);
+    if (b.desc) L.push(`   ${b.desc.replace(/\s*\n+\s*/g, ' ')}`);
+    if (b.type === 'stationer') (b.stations || []).forEach((s, j) => L.push(`   • Station ${j + 1}: ${s.title || '–'}`));
+    if (b.type === 'stationer' && (b.stations || []).length) L.push(`   Byte var ${+b.rot || 5} min`);
+    if (b.type === 'loop' && b.routeId && S.routes[b.routeId]){ const r = S.routes[b.routeId], lm = lapMin(r);
+      L.push(`   Bana: ${r.name}, ${fmtDist(r.dist)}${lm ? `, ${lapsText(b, r)}` : ''}`);
+      if (r.pts && r.pts[0] && !(p.routeId === r.id)) L.push(`   Karta: ${mapsPin(r.pts[0][0], r.pts[0][1])}`); }
+  });
+  const pr = p.routeId && S.routes[p.routeId];
+  if (pr){ L.push('', `🗺 ${B('Bana:')} ${pr.name}, ${fmtDist(pr.dist)}, ${routeGain(pr)} hm`);
+    if (pr.pts && pr.pts[0]) L.push(`   Karta: ${mapsPin(pr.pts[0][0], pr.pts[0][1])}`);
+    (pr.pois || []).forEach((pt, i) => L.push(`   ${i + 1}. ${poiK(pt.kind).n}${pt.note ? `: ${pt.note}` : ''}`)); }
+  if (p.notes) L.push('', `📝 ${B('Övrigt:')} ${p.notes}`);
+  return L.join('\n');
+}
+
+/* ---------- share images ---------- */
+function wrapLines(x, text, maxW){
+  const out = [];
+  String(text || '').split(/\n+/).forEach(par => {
+    const words = par.split(/\s+/).filter(Boolean); let cur = '';
+    words.forEach(w => { const t = cur ? cur + ' ' + w : w; if (x.measureText(t).width > maxW && cur){ out.push(cur); cur = w; } else cur = t; });
+    if (cur) out.push(cur);
+  });
+  return out;
+}
+function drawLines(x, lines, px, y, lh, max){
+  if (max && lines.length > max){ lines = lines.slice(0, max); lines[max - 1] = lines[max - 1].replace(/\s*\S*$/, '') + ' …'; }
+  lines.forEach((l, i) => x.fillText(l, px, y + i * lh));
+  return y + Math.max(0, lines.length - 1) * lh;
+}
+function rr(x, X, Y, W, H, r){ x.beginPath(); if (x.roundRect) x.roundRect(X, Y, W, H, r); else x.rect(X, Y, W, H); }
+function crop(c, h){ const o = document.createElement('canvas'); o.width = c.width; o.height = Math.ceil(h); o.getContext('2d').drawImage(c, 0, 0); return o; }
+async function fontsReady(){ try { await document.fonts.ready; } catch {} }
+
+async function passImage(p){
+  await fontsReady();
+  const W = 1080, P = 72, c = document.createElement('canvas'); c.width = W; c.height = 7000;
+  const x = c.getContext('2d');
+  x.fillStyle = IC.bg; x.fillRect(0, 0, W, c.height);
+  let y = P + 26;
+  x.fillStyle = IC.accent; x.font = `700 30px ${DF}`; x.fillText('STIGPASS · DAGENS PASS', P, y);
+  y += 84; x.fillStyle = IC.fg; x.font = `700 80px ${DF}`; y = drawLines(x, wrapLines(x, p.title || 'Pass', W - 2*P), P, y, 82, 3);
+  y += 58; x.font = `600 38px ${BF}`; x.fillText(fmtDate(p), P, y);
+  x.font = `500 32px ${BF}`; x.fillStyle = IC.muted;
+  if (p.place){ y += 48; y = drawLines(x, wrapLines(x, `Plats: ${p.place}`, W - 2*P), P, y, 42, 2); }
+  if (p.alt){ y += 48; y = drawLines(x, wrapLines(x, `Alternativ plats: ${p.alt}`, W - 2*P), P, y, 42, 2); }
+  // totals
+  y += 140; const t = total(p);
+  x.fillStyle = IC.fg; x.font = `700 130px ${DF}`; x.fillText(String(t), P, y);
+  const tw = x.measureText(String(t)).width; x.font = `600 40px ${DF}`; x.fillStyle = IC.muted; x.fillText('MIN', P + tw + 14, y);
+  x.textAlign = 'right'; x.font = `600 34px ${DF}`;
+  const right = [`${(p.blocks || []).length} BLOCK`]; const pr = p.routeId && S.routes[p.routeId]; if (pr) right.push(`BANA ${fmtDist(pr.dist).toUpperCase()}`);
+  right.forEach((s, i) => x.fillText(s, W - P, y - 46 * (right.length - 1 - i)));
+  x.textAlign = 'left';
+  // strip
+  y += 40; const SH = 190, SW = W - 2*P, scale = Math.max(t, 1);
+  x.strokeStyle = IC.line; x.lineWidth = 2;
+  [0, 1/3, 2/3].forEach(f => { x.beginPath(); x.moveTo(P, y + SH * f); x.lineTo(W - P, y + SH * f); x.stroke(); });
+  let sx = P;
+  (p.blocks || []).forEach(b => {
+    const bw = (+b.min || 0) / scale * SW, bh = SH * INT_H[b.int || T[b.type]?.i || 2] / 100;
+    x.fillStyle = ITC[b.type] || IC.muted; rr(x, sx, y + SH - bh, Math.max(2, bw - 4), bh, [6, 6, 0, 0]); x.fill();
+    if (b.type === 'stationer'){ const n = Math.max(2, (b.stations || []).length); x.fillStyle = IC.bg; for (let k = 1; k < n; k++) x.fillRect(sx, y + SH - bh + bh * k / n - 2, Math.max(2, bw - 4), 4); }
+    sx += bw;
+  });
+  x.fillStyle = IC.line; x.fillRect(P, y + SH, SW, 3);
+  x.fillStyle = IC.muted; x.font = `500 24px ${BF}`;
+  const step = scale > 120 ? 30 : 15;
+  for (let m = 0; m <= scale; m += step){ const tx = P + m / scale * SW; x.textAlign = m === 0 ? 'left' : m + step > scale ? 'right' : 'center'; x.fillText(String(m), tx, y + SH + 36); }
+  x.textAlign = 'left';
+  y += SH + 60;
+  // blocks
+  const TX = P + 34, MW = W - P - TX - 150;
+  (p.blocks || []).forEach((b, i) => {
+    const y0 = y + 26;
+    x.font = `700 44px ${DF}`; const tl = wrapLines(x, `${i + 1}. ${blockTitle(b)}`, MW).slice(0, 2);
+    x.font = `400 30px ${BF}`; let dl = b.desc ? wrapLines(x, b.desc, MW) : [];
+    const sub = [];
+    if (b.type === 'stationer') (b.stations || []).forEach((s, j) => sub.push(`Station ${j + 1}: ${s.title || '–'}`));
+    if (b.type === 'stationer' && (b.stations || []).length) sub.push(`Byte var ${+b.rot || 5} min`);
+    if (b.type === 'loop' && b.routeId && S.routes[b.routeId]){ const r = S.routes[b.routeId], lm = lapMin(r); sub.push(`Bana: ${r.name}, ${fmtDist(r.dist)}${lm ? `, ${lapsText(b, r)}` : ''}`); }
+    const mats = [...blockNeed(b).values()].map(matStr); if (mats.length) sub.push(`Material: ${mats.join(', ')}`);
+    const dmax = 3; if (dl.length > dmax) dl = dl.slice(0, dmax);
+    const h = 44 + (tl.length - 1) * 48 + 44 + (dl.length ? 12 + dl.length * 40 : 0) + sub.reduce((s, line) => s + wrapLines(x, line, MW).length * 40, 0) + (sub.length ? 10 : 0);
+    x.fillStyle = ITC[b.type] || IC.muted; rr(x, P, y0 - 4, 10, h + 8, 5); x.fill();
+    let ty = y0 + 36;
+    x.fillStyle = IC.fg; x.font = `700 44px ${DF}`; ty = drawLines(x, tl, TX, ty, 48);
+    ty += 40; x.font = `600 24px ${BF}`; x.fillStyle = ITC[b.type] || IC.muted;
+    const iv = b.int || T[b.type]?.i || 2, tl0 = tn(b.type).toUpperCase(); x.fillText(tl0, TX, ty);
+    const ix = TX + x.measureText(tl0).width + 26; x.fillStyle = IINT[iv]; x.beginPath(); x.arc(ix, ty - 8, 8, 0, Math.PI*2); x.fill();
+    x.fillText(INT[iv].toUpperCase(), ix + 16, ty);
+    x.font = `400 30px ${BF}`; x.fillStyle = IC.muted;
+    if (dl.length){ ty += 50; ty = drawLines(x, dl, TX, ty, 40, dmax); }
+    x.fillStyle = IC.fg;
+    if (sub.length) ty += 10;
+    sub.forEach(line => { ty += 40; ty = drawLines(x, wrapLines(x, '• ' + line, MW), TX, ty, 40); });
+    x.textAlign = 'right'; x.fillStyle = IC.fg; x.font = `700 64px ${DF}`; x.fillText(String(+b.min || 0), W - P, y0 + 52);
+    x.font = `600 24px ${DF}`; x.fillStyle = IC.muted; x.fillText('MIN', W - P, y0 + 82); x.textAlign = 'left';
+    y = Math.max(ty, y0 + 90) + 30;
+    x.fillStyle = IC.line; x.fillRect(P, y, W - 2*P, 2);
+  });
+  // material
+  const m = passMat(p);
+  const sect = (title, body) => {
+    y += 70; x.fillStyle = IC.accent; x.font = `700 32px ${DF}`; x.fillText(title, P, y);
+    y += 48; x.fillStyle = IC.fg; x.font = `500 34px ${BF}`; y = drawLines(x, wrapLines(x, body, W - 2*P), P, y, 44);
+  };
+  if (m.length) sect('TRÄNARNA TAR MED', m.map(matStr).join(', '));
+  if (p.notes) sect('ÖVRIGT', p.notes);
+  y += 70; x.fillStyle = IC.muted; x.font = `500 24px ${BF}`; x.fillText('Gjord med Stigpass', P, y);
+  return crop(c, y + P - 20);
+}
+async function routeImage(r){
+  await fontsReady();
+  const W = 1080, P = 72, c = document.createElement('canvas'); c.width = W; c.height = 3600;
+  const x = c.getContext('2d');
+  x.fillStyle = IC.bg; x.fillRect(0, 0, W, c.height);
+  let y = P + 26;
+  x.fillStyle = IC.accent; x.font = `700 30px ${DF}`; x.fillText('STIGPASS · BANA', P, y);
+  y += 84; x.fillStyle = IC.fg; x.font = `700 76px ${DF}`; y = drawLines(x, wrapLines(x, r.name || 'Bana', W - 2*P), P, y, 80, 2);
+  y += 40;
+  const st = [[fmtDist(r.dist), 'LÄNGD'], [`${routeGain(r)} m`, 'UPP'], [lapMin(r) ? `${nf1.format(lapMin(r))} min` : '–', `VARV I ${nf1.format(+r.tempo || 12)} KM/H`]];
+  const cw = (W - 2*P - 32) / 3;
+  st.forEach(([v, l], i) => { const sx = P + i * (cw + 16); x.fillStyle = IC.card; rr(x, sx, y, cw, 120, 14); x.fill();
+    x.fillStyle = IC.fg; x.font = `700 50px ${DF}`; x.fillText(v, sx + 20, y + 62); x.fillStyle = IC.muted; x.font = `600 20px ${BF}`; x.fillText(l, sx + 20, y + 98); });
+  y += 150;
+  const MH = 860, mc = document.createElement('canvas'); mc.width = W - 2*P; mc.height = MH;
+  drawRoute(mc.getContext('2d'), r, mc.width, MH, {bg:IC.card, grid:'#1c2430', casing:IC.card, line:IC.accent, arrow:IC.fg, fg:IC.fg, muted:IC.muted},
+    {pad:60, lw:9, markR:22, markFont:`700 24px ${BF}`, arrowSize:15, arrowCount:9, scaleFont:`600 22px ${BF}`, poiR:30});
+  x.save(); rr(x, P, y, mc.width, MH, 18); x.clip(); x.drawImage(mc, P, y); x.restore();
+  y += MH + 24;
+  const ec = document.createElement('canvas'); ec.width = W - 2*P; ec.height = 240;
+  drawEle(ec.getContext('2d'), r, ec.width, ec.height, {bg:IC.card, grid:'#1c2430', line:IC.accent, area:IC.accent, areaAlpha:.22, muted:IC.muted}, {font:22, lw:4});
+  x.save(); rr(x, P, y, ec.width, ec.height, 18); x.clip(); x.drawImage(ec, P, y); x.restore();
+  y += ec.height;
+  const legend = [['S', isLoop(r) ? 'Start och mål' : 'Start'], ...(isLoop(r) ? [] : [['M', 'Mål']]),
+    ...(r.pois || []).map((pt, i) => [pt, `${i + 1}. ${poiK(pt.kind).n}${pt.note ? `: ${pt.note}` : ''}`])];
+  y += 30;
+  legend.forEach(([m, txt], li) => { y += 66;
+    if (typeof m === 'string'){ x.fillStyle = IC.fg; x.beginPath(); x.arc(P + 24, y - 11, 20, 0, Math.PI*2); x.fill();
+      x.fillStyle = IC.bg; x.font = `700 22px ${BF}`; x.textAlign = 'center'; x.textBaseline = 'middle'; x.fillText(m, P + 24, y - 10); x.textAlign = 'left'; x.textBaseline = 'alphabetic'; }
+    else drawPoiMarker(x, m.kind, P + 24, y - 11, 24, 0, false, IC.fg);
+    x.fillStyle = IC.fg; x.font = `500 30px ${BF}`; drawLines(x, wrapLines(x, txt, W - 2*P - 70).slice(0, 1), P + 64, y, 40); });
+  y += 60; x.fillStyle = IC.muted; x.font = `500 24px ${BF}`; x.fillText('Pilarna visar körriktningen.', P, y);
+  return crop(c, y + P - 20);
+}
+function loadImg(src){ return new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = rej; i.src = src; }); }
+function sketchesOf(p){
+  const out = [], seen = new Set(), push = (id, label) => { if (id && S.sketches[id] && !seen.has(id)){ seen.add(id); out.push({id, label}); } };
+  push(p.sketchId, 'Banskiss för passet');
+  (p.blocks || []).forEach((b, i) => {
+    push(b.sketchId, `${i + 1}. ${blockTitle(b)}`);
+    if (b.type === 'stationer') (b.stations || []).forEach((s, j) => push(s.sketchId, `${i + 1}. Station ${j + 1}: ${s.title || ''}`));
+  });
+  return out;
+}
+async function sketchImage(p, list){
+  await fontsReady();
+  const W = 1080, P = 72, IW = W - 2*P, c = document.createElement('canvas'); c.width = W; c.height = 900 * list.length + 400;
+  const x = c.getContext('2d');
+  x.fillStyle = IC.bg; x.fillRect(0, 0, W, c.height);
+  let y = P + 26;
+  x.fillStyle = IC.accent; x.font = `700 30px ${DF}`; x.fillText('STIGPASS · ÖVNINGSSKISSER', P, y);
+  y += 70; x.fillStyle = IC.fg; x.font = `700 56px ${DF}`; y = drawLines(x, wrapLines(x, p.title || 'Pass', IW), P, y, 60, 2);
+  for (const s of list){
+    let img; try { img = await loadImg(S.sketches[s.id].img); } catch { continue; }
+    y += 64; x.fillStyle = IC.fg; x.font = `700 40px ${DF}`; y = drawLines(x, wrapLines(x, s.label, IW), P, y, 44, 2);
+    y += 20; const ih = IW * (img.height / img.width);
+    x.save(); rr(x, P, y, IW, ih, 14); x.clip(); x.drawImage(img, P, y, IW, ih); x.restore();
+    y += ih;
+  }
+  return crop(c, y + P);
+}
+const toBlob = (c, type, q) => new Promise(res => c.toBlob(res, type, q));
+async function genImages(){
+  const sh = S.sheet, p = S.edit; if (!sh || !p) return;
+  const out = [];
+  try {
+    const pc = await passImage(p);
+    out.push({label:'Passbild', file:`pass-${p.date || 'utan-datum'}-${slug(p.title)}.png`, blob: await toBlob(pc, 'image/png')});
+    for (const r of routesOf(p)){ const rc = await routeImage(r); out.push({label:`Bana: ${r.name}`, file:`bana-${slug(r.name)}.png`, blob: await toBlob(rc, 'image/png')}); }
+    const sl = sketchesOf(p);
+    if (sl.length){ const sc = await sketchImage(p, sl); out.push({label:'Övningsskisser', file:`skisser-${p.date || 'pass'}.jpg`, blob: await toBlob(sc, 'image/jpeg', .88)}); }
+  } catch (e){ console.error(e); }
+  out.forEach(o => o.url = o.blob ? URL.createObjectURL(o.blob) : '');
+  if (S.sheet === sh){ sh.images = out.filter(o => o.blob); renderSheet(); }
+}
+function canShareFiles(list){
+  try { return !!(navigator.canShare && navigator.canShare({files:list.map(im => new File([im.blob], im.file, {type:im.blob.type}))})); } catch { return false; }
+}
+async function saveFile(file, blob, share = true){
+  const f = new File([blob], file, {type:blob.type});
+  if (share && navigator.canShare){
+    try { if (navigator.canShare({files:[f]})){ await navigator.share({files:[f]}); return; } }
+    catch (e){ if (e && e.name === 'AbortError') return; }
+  }
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = file;
+  document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+}
+
+/* ---------- symbols: one drawing per symbol, used in sketches, on the map and as button icons ---------- */
+const SYM = {
+  kon:{n:'Kon'}, platta:{n:'Platt kon'}, bike:{n:'Cykel'}, start:{n:'Start'}, finish:{n:'Mål'},
+  ledare:{n:'Ledare', cap:'LEDARE'}, hinder:{n:'Hinder', cap:'HINDER'}, stenkista:{n:'Stenkista', cap:'STENKISTA'},
+  hopp:{n:'Hopp', cap:'HOPP'}, balans:{n:'Balans', cap:'BALANS'}, flaska:{n:'Flaska'}, stopp:{n:'Stopp'},
+  sprint:{n:'Sprint', cap:'SPRINT'}, sakta:{n:'Sakta', cap:'SAKTA'}, enhand:{n:'En hand', cap:'EN HAND'},
+  bromsa:{n:'Bromsa', cap:'BROMSA'}, uppfor:{n:'Uppför', cap:'UPPFÖR'}, nedfor:{n:'Nedför', cap:'NEDFÖR'},
+  utmaning:{n:'Utmaning', cap:'UTMANING'}
+};
+const INK = '#1b2230';
+function symArrow(x, x1, y1, x2, y2, col, lw){
+  const a = Math.atan2(y2 - y1, x2 - x1), h = lw * 2.6;
+  x.strokeStyle = col; x.fillStyle = col; x.lineWidth = lw;
+  x.beginPath(); x.moveTo(x1, y1); x.lineTo(x2 - h * .7 * Math.cos(a), y2 - h * .7 * Math.sin(a)); x.stroke();
+  x.beginPath(); x.moveTo(x2, y2); x.lineTo(x2 - h * Math.cos(a - .5), y2 - h * Math.sin(a - .5)); x.lineTo(x2 - h * Math.cos(a + .5), y2 - h * Math.sin(a + .5)); x.closePath(); x.fill();
+}
+function ell(x, cx, cy, rx, ry){ x.beginPath(); x.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2); }
+function circ(x, cx, cy, r){ x.beginPath(); x.arc(cx, cy, r, 0, Math.PI * 2); }
+function drawSymbol(x, t, col, cap){
+  col = col || INK;
+  x.save(); x.lineCap = 'round'; x.lineJoin = 'round';
+  switch (t){
+    case 'kon':
+      x.fillStyle = '#ff7a1a'; x.beginPath(); x.moveTo(0, -21); x.lineTo(11, 13); x.lineTo(-11, 13); x.closePath(); x.fill();
+      x.fillRect(-17, 13, 34, 6); x.fillStyle = '#fff'; x.fillRect(-5.5, -3, 11, 5); break;
+    case 'platta':
+      x.fillStyle = '#ff7a1a'; ell(x, 0, 4, 20, 9); x.fill(); x.strokeStyle = '#b8500c'; x.lineWidth = 1.5; x.stroke();
+      x.fillStyle = '#ffb27a'; ell(x, 0, 1, 11, 4.5); x.fill(); x.fillStyle = '#fff'; ell(x, 0, 0, 5, 2); x.fill(); break;
+    case 'bike':
+      x.strokeStyle = col; x.lineWidth = 3.2;
+      circ(x, -14, 7, 10); x.stroke(); circ(x, 14, 7, 10); x.stroke();
+      x.beginPath(); x.moveTo(-14, 7); x.lineTo(-3, -8); x.lineTo(9, -8); x.lineTo(14, 7); x.moveTo(-3, -8); x.lineTo(1, 7); x.lineTo(-14, 7);
+      x.moveTo(7, -14); x.lineTo(12, -14); x.moveTo(9, -14); x.lineTo(9, -8); x.moveTo(-6, -12); x.lineTo(1, -12); x.stroke(); break;
+    case 'start': case 'finish':
+      x.strokeStyle = INK; x.lineWidth = 3.2; x.beginPath(); x.moveTo(-9, 20); x.lineTo(-9, -20); x.stroke();
+      if (t === 'start'){ x.fillStyle = '#1e9444'; x.beginPath(); x.moveTo(-7, -20); x.lineTo(17, -20); x.lineTo(10, -12); x.lineTo(17, -4); x.lineTo(-7, -4); x.closePath(); x.fill(); }
+      else { for (let i = 0; i < 4; i++) for (let j = 0; j < 3; j++){ x.fillStyle = (i + j) % 2 ? '#fff' : INK; x.fillRect(-7 + i * 6, -20 + j * 5.5, 6, 5.5); } x.strokeStyle = INK; x.lineWidth = 1.4; x.strokeRect(-7, -20, 24, 16.5); }
+      break;
+    case 'ledare':
+      x.fillStyle = '#e5530c'; circ(x, 0, -12, 6.5); x.fill();
+      x.beginPath(); x.moveTo(-13, 18); x.quadraticCurveTo(-13, -3, 0, -3); x.quadraticCurveTo(13, -3, 13, 18); x.closePath(); x.fill();
+      x.strokeStyle = '#fff'; x.lineWidth = 2; x.beginPath(); x.moveTo(-5, 4); x.lineTo(5, 4); x.stroke(); break;
+    case 'hinder':
+      x.fillStyle = '#8a5a2b'; x.beginPath(); if (x.roundRect) x.roundRect(-21, -7, 42, 14, 7); else x.rect(-21, -7, 42, 14); x.fill();
+      x.fillStyle = '#d2a066'; ell(x, 15, 0, 5, 7); x.fill(); x.strokeStyle = '#6b431e'; x.lineWidth = 1.3; ell(x, 15, 0, 2.2, 3.4); x.stroke();
+      x.beginPath(); x.moveTo(-15, -2); x.lineTo(-3, -2); x.moveTo(-9, 3); x.lineTo(5, 3); x.stroke(); break;
+    case 'stenkista':
+      x.fillStyle = '#9aa3ad'; x.strokeStyle = '#4a525c'; x.lineWidth = 1.5;
+      [[-12, 6, 8, 6], [1, 0, 9, 7], [13, 7, 7, 6], [-2, 12, 7, 4.5], [10, -9, 6, 5], [-11, -7, 6, 5]].forEach(([a, b, c, d]) => { ell(x, a, b, c, d); x.fill(); x.stroke(); });
+      break;
+    case 'hopp':
+      x.fillStyle = '#b07a3c'; x.beginPath(); x.moveTo(-21, 14); x.lineTo(6, 14); x.lineTo(6, -4); x.quadraticCurveTo(-8, -1, -21, 14); x.fill();
+      x.setLineDash([3, 3]); x.strokeStyle = col; x.lineWidth = 2.2; x.beginPath(); x.moveTo(6, -7); x.quadraticCurveTo(14, -24, 20, -2); x.stroke(); x.setLineDash([]);
+      x.fillStyle = col; x.beginPath(); x.moveTo(21, 3); x.lineTo(16, -4); x.lineTo(23, -5); x.closePath(); x.fill(); break;
+    case 'balans':
+      x.fillStyle = '#c79a5a'; x.fillRect(-22, -4, 44, 7); x.strokeStyle = '#8a6a3a'; x.lineWidth = 1.4; x.strokeRect(-22, -4, 44, 7);
+      x.fillStyle = '#8a6a3a'; x.beginPath(); x.moveTo(-15, 3); x.lineTo(-19, 14); x.lineTo(-11, 14); x.closePath(); x.moveTo(15, 3); x.lineTo(11, 14); x.lineTo(19, 14); x.closePath(); x.fill();
+      x.strokeStyle = col; x.lineWidth = 2; x.beginPath(); x.moveTo(-14, -12); x.quadraticCurveTo(-7, -18, 0, -12); x.quadraticCurveTo(7, -6, 14, -12); x.stroke(); break;
+    case 'flaska':
+      x.fillStyle = '#1d74d8'; x.beginPath(); if (x.roundRect) x.roundRect(-8, -9, 16, 28, 4); else x.rect(-8, -9, 16, 28); x.fill();
+      x.fillRect(-4, -15, 8, 7); x.fillStyle = INK; x.fillRect(-5, -20, 10, 5);
+      x.fillStyle = 'rgba(255,255,255,.55)'; x.fillRect(-4.5, -5, 3, 18); break;
+    case 'stopp': {
+      x.beginPath(); for (let k = 0; k < 8; k++){ const a = Math.PI / 8 + k * Math.PI / 4; x.lineTo(20 * Math.cos(a), 20 * Math.sin(a)); } x.closePath();
+      x.fillStyle = '#d3271b'; x.fill(); x.strokeStyle = '#fff'; x.lineWidth = 2; x.beginPath();
+      for (let k = 0; k < 8; k++){ const a = Math.PI / 8 + k * Math.PI / 4; x.lineTo(16.5 * Math.cos(a), 16.5 * Math.sin(a)); } x.closePath(); x.stroke();
+      x.fillStyle = '#fff'; x.font = `800 9px ${BF}`; x.textAlign = 'center'; x.textBaseline = 'middle'; x.fillText('STOPP', 0, 1); break; }
+    case 'sprint':
+      x.fillStyle = '#f2a20c'; x.strokeStyle = '#8a5a00'; x.lineWidth = 1.4;
+      x.beginPath(); x.moveTo(5, -21); x.lineTo(-11, 3); x.lineTo(-1, 3); x.lineTo(-6, 21); x.lineTo(12, -5); x.lineTo(2, -5); x.lineTo(8, -21); x.closePath(); x.fill(); x.stroke(); break;
+    case 'sakta':
+      x.fillStyle = '#8fbf6a'; x.beginPath(); x.moveTo(-22, 14); x.quadraticCurveTo(-22, 9, -12, 9); x.lineTo(12, 9); x.quadraticCurveTo(16, 9, 17, 0);
+      x.quadraticCurveTo(18, -6, 21, -6); x.quadraticCurveTo(24, -6, 23, 2); x.quadraticCurveTo(21, 14, 8, 14); x.closePath(); x.fill();
+      x.strokeStyle = '#5f8a3f'; x.lineWidth = 1.5; x.beginPath(); x.moveTo(19, -5); x.lineTo(16, -14); x.moveTo(22, -5); x.lineTo(24, -14); x.stroke();
+      x.fillStyle = INK; circ(x, 16, -14, 1.7); x.fill(); circ(x, 24, -14, 1.7); x.fill();
+      x.fillStyle = '#b0763a'; circ(x, -3, -1, 12); x.fill(); x.strokeStyle = '#6e4318'; x.lineWidth = 1.8; x.beginPath();
+      for (let a = 0; a < 4 * Math.PI; a += .2){ const rr2 = 1 + a * .8; x.lineTo(-3 + rr2 * Math.cos(a), -1 + rr2 * Math.sin(a)); } x.stroke(); break;
+    case 'enhand':
+      x.strokeStyle = INK; x.lineWidth = 3.2; x.beginPath(); x.moveTo(-21, 9); x.quadraticCurveTo(0, 3, 21, 9); x.stroke();
+      x.lineWidth = 6; x.beginPath(); x.moveTo(-21, 9); x.lineTo(-14, 8); x.moveTo(14, 8); x.lineTo(21, 9); x.stroke();
+      x.fillStyle = '#f2c19a'; x.strokeStyle = '#a8704a'; x.lineWidth = 1.2;
+      x.beginPath(); if (x.roundRect) x.roundRect(10, -6, 13, 12, 4); else x.rect(10, -6, 13, 12); x.fill(); x.stroke();
+      for (let k = 0; k < 4; k++){ x.beginPath(); if (x.roundRect) x.roundRect(10.5 + k * 3.1, 4, 2.8, 8, 1.4); else x.rect(10.5 + k * 3.1, 4, 2.8, 8); x.fill(); x.stroke(); }
+      x.fillStyle = '#1d74d8'; circ(x, -11, -9, 8); x.fill(); x.fillStyle = '#fff'; x.font = `800 11px ${BF}`; x.textAlign = 'center'; x.textBaseline = 'middle'; x.fillText('1', -11, -8); break;
+    case 'bromsa':
+      x.strokeStyle = INK; x.lineWidth = 3; circ(x, 0, 0, 15); x.stroke(); x.lineWidth = 1;
+      for (let k = 0; k < 6; k++){ const a = k * Math.PI / 3; x.beginPath(); x.moveTo(0, 0); x.lineTo(14 * Math.cos(a), 14 * Math.sin(a)); x.stroke(); }
+      x.fillStyle = INK; circ(x, 0, 0, 3); x.fill();
+      x.strokeStyle = '#d3271b'; x.lineWidth = 7; x.lineCap = 'butt'; x.beginPath(); x.arc(0, 0, 15, -1.25, -.35); x.stroke(); break;
+    case 'uppfor': case 'nedfor': {
+      const up = t === 'uppfor', c2 = up ? '#d3271b' : '#0d958a';
+      x.fillStyle = up ? 'rgba(211,39,27,.16)' : 'rgba(13,149,138,.16)'; x.strokeStyle = c2; x.lineWidth = 2;
+      x.beginPath(); if (up){ x.moveTo(-21, 15); x.lineTo(21, 15); x.lineTo(21, -14); } else { x.moveTo(-21, -14); x.lineTo(-21, 15); x.lineTo(21, 15); } x.closePath(); x.fill(); x.stroke();
+      if (up) symArrow(x, -12, 3, 8, -11, c2, 3); else symArrow(x, -8, -11, 12, 3, c2, 3);
+      break; }
+    case 'utmaning': {
+      x.beginPath(); for (let k = 0; k < 10; k++){ const a = -Math.PI / 2 + k * Math.PI / 5, rr2 = k % 2 ? 9 : 21; x.lineTo(rr2 * Math.cos(a), rr2 * Math.sin(a)); } x.closePath();
+      x.fillStyle = '#d02f7c'; x.fill(); x.fillStyle = '#fff'; x.font = `800 14px ${BF}`; x.textAlign = 'center'; x.textBaseline = 'middle'; x.fillText('!', 0, 2); break; }
+  }
+  x.restore();
+  if (cap && SYM[t] && SYM[t].cap){
+    x.save(); x.font = `800 8px ${BF}`; x.textAlign = 'center'; x.textBaseline = 'top';
+    x.lineWidth = 3; x.strokeStyle = '#fff'; x.lineJoin = 'round'; x.strokeText(SYM[t].cap, 0, 24); x.fillStyle = INK; x.fillText(SYM[t].cap, 0, 24); x.restore();
+  }
+}
+function drawPoiMarker(x, kind, cx, cy, r, num, sel, selCol){
+  const k = poiK(kind);
+  x.save();
+  if (sel){ x.setLineDash([4, 3]); x.lineWidth = 2.5; x.strokeStyle = selCol || INK; circ(x, cx, cy, r + 6); x.stroke(); x.setLineDash([]); }
+  circ(x, cx, cy, r); x.fillStyle = '#fff'; x.fill(); x.lineWidth = Math.max(2, r * .17); x.strokeStyle = k.c; x.stroke();
+  x.translate(cx, cy); const s = r / 27; x.scale(s, s); drawSymbol(x, k.sym, INK, false);
+  x.restore();
+  if (num){
+    const br = Math.max(6, r * .46), bx = cx + r * .74, by = cy - r * .74;
+    x.save(); circ(x, bx, by, br); x.fillStyle = INK; x.fill(); x.lineWidth = Math.max(1.5, br * .22); x.strokeStyle = '#fff'; x.stroke();
+    x.fillStyle = '#fff'; x.font = `800 ${Math.round(br * 1.25)}px ${BF}`; x.textAlign = 'center'; x.textBaseline = 'middle'; x.fillText(String(num), bx, by + br * .08); x.restore();
+  }
+}
+const iconCache = {};
+function symbolURL(t){
+  const key = 's:' + t; if (iconCache[key]) return iconCache[key];
+  const c = document.createElement('canvas'); c.width = c.height = 64; const x = c.getContext('2d');
+  x.translate(32, 32); x.scale(1.3, 1.3); drawSymbol(x, t, INK, false);
+  return iconCache[key] = c.toDataURL('image/png');
+}
+function poiIcon(kind, num){
+  const key = 'p:' + kind + ':' + (num || 0); if (iconCache[key]) return iconCache[key];
+  const c = document.createElement('canvas'); c.width = c.height = 64; const x = c.getContext('2d');
+  drawPoiMarker(x, kind, num ? 29 : 32, num ? 35 : 32, num ? 22 : 26, num, false);
+  return iconCache[key] = c.toDataURL('image/png');
+}
+
+/* ---------- sketch editor ---------- */
+const SK = {open:false, ops:[], bg:null, tool:'pen', color:'#1b2230', drawing:null, onSave:null, clearAsk:false};
+const SK_COLORS = ['#1b2230','#d3271b','#1d74d8','#1e9444'];
+async function openSketch(srcId, onSave){
+  SK.ops = []; SK.bg = null; SK.tool = 'pen'; SK.color = '#1b2230'; SK.onSave = onSave; SK.clearAsk = false;
+  if (srcId && S.sketches[srcId]){ try { SK.bg = await loadImg(S.sketches[srcId].img); } catch {} }
+  SK.open = true; renderSketch();
+}
+function renderSketch(){
+  const host = $('#sk');
+  if (!SK.open){ host.hidden = true; host.innerHTML = ''; return; }
+  host.hidden = false;
+  const tools = [['pen','Penna',ICONS.pen],['arrow','Pil',ICONS.arrow],['num','Nummer',ICONS.num],
+    ...Object.entries(SYM).map(([k, v]) => [k, v.n, `<img src="${symbolURL(k)}" alt="">`])];
+  host.innerHTML = `<div class="sk-top"><button class="btn small" data-sk="cancel">Avbryt</button><b>Skiss</b><button class="btn small primary" data-sk="save">Spara</button></div>
+    <div class="sk-tools" role="toolbar" aria-label="Verktyg">${tools.map(([k, n, ic]) => `<button class="tool" data-sk="tool" data-k="${k}" aria-pressed="${SK.tool === k}"><span class="ic">${ic}</span>${n}</button>`).join('')}</div>
+    <div class="colors" aria-label="Färg">${SK_COLORS.map(c => `<button class="color" data-sk="color" data-c="${c}" style="background:${c}" aria-pressed="${SK.color === c}" aria-label="Färg"></button>`).join('')}
+      <span class="spacer"></span><span class="hint" style="margin:0">Tryck för att placera, dra för att flytta.</span></div>
+    <div class="sk-stage"><canvas id="sk-canvas" width="800" height="600"></canvas></div>
+    <div class="sk-bottom"><button class="btn small" data-sk="undo">${ICONS.undo}Ångra</button>
+      <button class="btn small${SK.clearAsk ? ' danger' : ''}" data-sk="clear">${SK.clearAsk ? 'Rensa allt?' : 'Rensa'}</button>
+      <label class="btn small">${ICONS.photo}Foto som bakgrund<input type="file" id="sk-photo" accept="image/*" hidden></label></div>`;
+  skRedraw();
+}
+function skRedraw(){
+  const cv = $('#sk-canvas'); if (!cv) return;
+  const x = cv.getContext('2d');
+  x.fillStyle = '#ffffff'; x.fillRect(0, 0, 800, 600);
+  if (SK.bg){ const s = Math.min(800 / SK.bg.width, 600 / SK.bg.height), w = SK.bg.width * s, h = SK.bg.height * s; x.drawImage(SK.bg, (800 - w) / 2, (600 - h) / 2, w, h); }
+  let num = 0;
+  SK.ops.forEach(o => drawOp(x, o, o.t === 'num' ? ++num : 0));
+}
+function drawOp(x, o, n){
+  x.save(); x.lineCap = 'round'; x.lineJoin = 'round';
+  if (o.t === 'pen'){ x.strokeStyle = o.c; x.lineWidth = 5; x.beginPath(); o.pts.forEach(([a, b], i) => i ? x.lineTo(a, b) : x.moveTo(a, b)); if (o.pts.length === 1) x.lineTo(o.pts[0][0] + .1, o.pts[0][1]); x.stroke(); }
+  else if (o.t === 'arrow'){
+    const [ax, ay] = o.a, [bx, by] = o.b, ang = Math.atan2(by - ay, bx - ax);
+    x.strokeStyle = o.c; x.fillStyle = o.c; x.lineWidth = 5; x.setLineDash([]);
+    x.beginPath(); x.moveTo(ax, ay); x.lineTo(bx - 14 * Math.cos(ang), by - 14 * Math.sin(ang)); x.stroke();
+    x.translate(bx, by); x.rotate(ang); x.beginPath(); x.moveTo(4, 0); x.lineTo(-20, -12); x.lineTo(-20, 12); x.closePath(); x.fill();
+  } else {
+    const [px, py] = o.p; x.translate(px, py);
+    if (o.t === 'num'){ x.scale(1.6, 1.6); x.fillStyle = o.c; x.beginPath(); x.arc(0, 0, 18, 0, Math.PI*2); x.fill(); x.fillStyle = '#fff'; x.font = `700 20px ${BF}`; x.textAlign = 'center'; x.textBaseline = 'middle'; x.fillText(String(n), 0, 1); }
+    else { x.scale(2, 2); drawSymbol(x, o.t === 'cone' ? 'kon' : o.t, o.c, true); }
+  }
+  x.restore();
+}
+function skPos(e){ const cv = $('#sk-canvas'), r = cv.getBoundingClientRect(); return [(e.clientX - r.left) / r.width * 800, (e.clientY - r.top) / r.height * 600]; }
+function skDown(e){
+  const cv = e.target; cv.setPointerCapture?.(e.pointerId); e.preventDefault();
+  const p = skPos(e); SK.clearAsk = false;
+  let op;
+  if (SK.tool === 'pen') op = {t:'pen', c:SK.color, pts:[p]};
+  else if (SK.tool === 'arrow') op = {t:'arrow', c:SK.color, a:p, b:p};
+  else op = {t:SK.tool, c:SK.color, p};
+  SK.ops.push(op); SK.drawing = op; skRedraw();
+}
+function skMove(e){
+  const op = SK.drawing; if (!op) return;
+  const p = skPos(e);
+  if (op.t === 'pen'){ const l = op.pts[op.pts.length - 1]; if (Math.hypot(p[0] - l[0], p[1] - l[1]) > 2) op.pts.push(p); }
+  else if (op.t === 'arrow') op.b = p; else op.p = p;
+  skRedraw();
+}
+function skUp(){
+  const op = SK.drawing; SK.drawing = null;
+  if (op && op.t === 'arrow' && Math.hypot(op.b[0] - op.a[0], op.b[1] - op.a[1]) < 12){ SK.ops.pop(); skRedraw(); }
+  if (op && op.t === 'pen') op.pts = op.pts.map(([a, b]) => [Math.round(a), Math.round(b)]);
+}
+async function skSave(){
+  const cv = $('#sk-canvas'); if (!cv) return;
+  if (!SK.ops.length && !SK.bg){ toast('Rita något först.'); return; }
+  let q = .85, url = cv.toDataURL('image/jpeg', q);
+  while (url.length > 200000 && q > .35){ q -= .1; url = cv.toDataURL('image/jpeg', q); }
+  const id = uid();
+  await write('sketches', id, {img:url, w:800, h:600, ts:Date.now()});
+  const cb = SK.onSave; SK.open = false; renderSketch();
+  cb && cb(id);
+}
+$('#sk').addEventListener('pointerdown', e => { if (e.target.id === 'sk-canvas') skDown(e); });
+$('#sk').addEventListener('pointermove', e => { if (SK.drawing) skMove(e); });
+$('#sk').addEventListener('pointerup', skUp);
+$('#sk').addEventListener('pointercancel', skUp);
+$('#sk').addEventListener('click', e => {
+  const b = e.target.closest('[data-sk]'); if (!b) return;
+  const a = b.dataset.sk;
+  if (a === 'cancel'){ SK.open = false; renderSketch(); }
+  else if (a === 'save') skSave();
+  else if (a === 'tool'){ SK.tool = b.dataset.k; document.querySelectorAll('[data-sk="tool"]').forEach(t => t.setAttribute('aria-pressed', t.dataset.k === SK.tool)); }
+  else if (a === 'color'){ SK.color = b.dataset.c; document.querySelectorAll('[data-sk="color"]').forEach(t => t.setAttribute('aria-pressed', t.dataset.c === SK.color)); }
+  else if (a === 'undo'){ SK.ops.pop(); skRedraw(); }
+  else if (a === 'clear'){ if (SK.clearAsk){ SK.ops = []; SK.bg = null; SK.clearAsk = false; } else SK.clearAsk = true; renderSketch(); }
+});
+$('#sk').addEventListener('change', async e => {
+  if (e.target.id !== 'sk-photo' || !e.target.files[0]) return;
+  const f = e.target.files[0];
+  try {
+    const url = URL.createObjectURL(f); const img = await loadImg(url);
+    const s = Math.min(1, 1200 / Math.max(img.width, img.height)), c = document.createElement('canvas');
+    c.width = Math.round(img.width * s); c.height = Math.round(img.height * s); c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+    SK.bg = await loadImg(c.toDataURL('image/jpeg', .85)); URL.revokeObjectURL(url); skRedraw();
+  } catch { toast('Kunde inte läsa bilden.'); }
+});
+
+/* ---------- actions ---------- */
+function newBlock(type){
+  const t = T[type];
+  const b = {id:uid(), type, title:t.n, min:t.m, int:t.i, desc:'', mat:''};
+  if (type === 'stationer'){ b.stations = [{title:'',desc:'',mat:''},{title:'',desc:'',mat:''},{title:'',desc:'',mat:''}]; b.rot = 5; b.min = 15; }
+  return b;
+}
+function blockFromDrill(d){
+  return {id:uid(), type:d.cat || 'teknik', title:d.title || '', min:+d.min || 10, int:T[d.cat]?.i || 2, desc:d.desc || '', mat:d.mat || '', sketchId:d.sketchId || '', drillId:d.id};
+}
+function newPassObj(){
+  return {id:uid(), title:'Nytt pass', date:today(), time:'18:00', place:'', alt:'', planned:90, notes:'', routeId:'', sketchId:'',
+    blocks:[newBlock('samling'), newBlock('avslutning')], created:Date.now(), updated:Date.now()};
+}
+function openPass(id){
+  const p = S.passes[id]; if (!p) return;
+  S.edit = clone(p); S.edit.blocks = S.edit.blocks || []; S.lastPass = id; S.sel = null; S.dirty = false; S.tab = 'pass';
+  $('#palette').innerHTML = ''; render(); window.scrollTo(0, 0);
+}
+function openRouteSheetRefresh(){ if (S.sheet && S.sheet.kind === 'block') renderSheet(); }
+function scrollToCard(id){ requestAnimationFrame(() => { const c = document.querySelector(`.bcard[data-id="${id}"]`); c && c.scrollIntoView({block:'nearest', behavior:'smooth'}); }); }
+
+const ACT = {
+  tab(el){ flushPass(); S.tab = el.dataset.tab; S.confirm = null; S.poiKind = null; render(); window.scrollTo(0, 0); },
+  theme(){ mode = mode === 'auto' ? 'light' : mode === 'light' ? 'dark' : 'auto'; try { localStorage.setItem('stigpass-mode', mode); } catch {} applyMode(); drawCanvases();
+    toast(mode === 'auto' ? 'Följer telefonens läge' : mode === 'light' ? 'Ljust läge' : 'Mörkt läge'); },
+  newPass(){ if (S.readOnly) return; const p = newPassObj(); write('passes', p.id, p); openPass(p.id); },
+  openPass(el){ openPass(el.dataset.id); },
+  closePass(){ flushPass(); S.edit = null; S.sel = null; render(); window.scrollTo(0, 0); },
+  copyPass(el){ if (S.readOnly) return; const src = S.passes[el.dataset.id]; if (!src) return;
+    const p = clone(src); p.id = uid(); p.title = (src.title || 'Pass') + ' (kopia)'; p.date = today(); p.created = p.updated = Date.now();
+    p.blocks = (p.blocks || []).map(b => ({...b, id:uid()}));
+    write('passes', p.id, p); toast('Kopia skapad'); openPass(p.id); },
+  askConfirm(el){ S.confirm = el.dataset.key; render(); },
+  cancelConfirm(){ S.confirm = null; render(); },
+  delPass(el){ remove('passes', el.dataset.id); S.confirm = null; toast('Passet är borttaget'); render(); },
+  addBlock(el){ if (!S.edit || S.readOnly) return; const b = newBlock(el.dataset.type); S.edit.blocks.push(b); S.sel = b.id; touchPass(); scrollToCard(b.id); toast(`${tn(b.type)} tillagt · tryck på blocket för att ändra`); },
+  selSeg(el){ S.sel = el.dataset.id; renderEditorParts(); scrollToCard(S.sel); },
+  openBlock(el){ S.sel = el.dataset.id; renderEditorParts(); openSheet({kind:'block', id:el.dataset.id}); },
+  closeSheet(){ closeSheet(); },
+  setType(el){ const b = curBlock(); if (!b) return; const old = T[b.type]?.n;
+    if (!b.title || b.title === old) b.title = T[el.dataset.k].n;
+    b.type = el.dataset.k; b.int = T[b.type].i;
+    if (b.type === 'stationer' && !(b.stations || []).length){ b.stations = [{title:'',desc:'',mat:''},{title:'',desc:'',mat:''}]; b.rot = b.rot || 5; }
+    touchPass(); renderSheet(); },
+  minStep(el){ const b = curBlock(); if (!b) return; b.min = clamp((+b.min || 0) + +el.dataset.d, 1, 180); const i = $('#b-min'); if (i) i.value = b.min; touchPass(); updateLaps(b); },
+  setInt(el){ const b = curBlock(); if (!b) return; b.int = +el.dataset.i; touchPass(); document.querySelectorAll('[data-act="setInt"]').forEach(x => x.setAttribute('aria-pressed', x === el)); },
+  addStation(){ const b = curBlock(); if (!b) return; (b.stations = b.stations || []).push({title:'',desc:'',mat:''}); touchPass(); renderSheet(); },
+  delStation(el){ const b = curBlock(); if (!b) return; b.stations.splice(+el.dataset.i, 1); touchPass(); renderSheet(); },
+  useRot(){ const b = curBlock(); if (!b) return; b.min = (b.stations || []).length * (+b.rot || 5); touchPass(); renderSheet(); },
+  moveBlock(el){ const b = curBlock(); if (!b) return; const a = S.edit.blocks, i = a.indexOf(b), j = i + +el.dataset.d;
+    if (j < 0 || j >= a.length) return; a.splice(i, 1); a.splice(j, 0, b); touchPass(); renderSheet(); },
+  dupBlock(){ const b = curBlock(); if (!b) return; const c = clone(b); c.id = uid(); S.edit.blocks.splice(S.edit.blocks.indexOf(b) + 1, 0, c); S.sel = c.id; touchPass(); S.sheet.id = c.id; renderSheet(); toast('Blocket är kopierat'); },
+  sheetConfirm(el){ if (!S.sheet) return; S.sheet.confirm = el.dataset.v || null; renderSheet(); },
+  delBlock(){ const b = curBlock(); if (!b) return; closeSheet(); removeBlock(b.id); },
+  pickDrill(el){
+    const isNew = el.dataset.new === '1';
+    if (isNew) openSheet({kind:'pickDrill', isNew:true, q:''});
+    else openSheet({kind:'pickDrill', id:S.sheet?.id, station: el.dataset.station != null ? +el.dataset.station : null, q:''});
+  },
+  pickAll(){ S.sheet.all = true; renderSheet(); },
+  pickBack(){ const sh = S.sheet; if (!sh.isNew && sh.id) openSheet({kind:'block', id:sh.id}); else closeSheet(); },
+  choosePick(el){
+    const d = S.drills[el.dataset.id], sh = S.sheet; if (!d || !S.edit) return;
+    if (sh.isNew){ const b = blockFromDrill(d); S.edit.blocks.push(b); S.sel = b.id; touchPass(); closeSheet(); scrollToCard(b.id); toast(`${d.title} tillagd`); return; }
+    const b = S.edit.blocks.find(x => x.id === sh.id); if (!b){ closeSheet(); return; }
+    if (sh.station != null){ const s = b.stations[sh.station]; Object.assign(s, {title:d.title || '', desc:d.desc || '', mat:d.mat || '', sketchId:d.sketchId || '', drillId:d.id}); }
+    else { const keep = {id:b.id}; Object.assign(b, blockFromDrill(d), keep); }
+    touchPass(); openSheet({kind:'block', id:b.id});
+  },
+  blockToDrill(){ const b = curBlock(); if (!b) return;
+    openSheet({kind:'drill', isNew:true, draft:{id:uid(), title:blockTitle(b), cat:b.type === 'stationer' ? 'teknik' : b.type, focus:'', level:'grund', min:+b.min || 10, mat:b.mat || '', desc:b.desc || '', easier:'', harder:'', safety:'', sketchId:b.sketchId || ''}, back:b.id}); },
+  newDrill(){ openSheet({kind:'drill', isNew:true, draft:{id:uid(), title:'', cat:S.filter.cat || 'teknik', focus:'', level:'grund', min:10, mat:'', desc:'', easier:'', harder:'', safety:'', sketchId:''}}); },
+  openDrill(el){ const d = S.drills[el.dataset.id]; if (!d) return; openSheet({kind:'drill', isNew:false, draft:clone(d)}); },
+  ddCat(el){ S.sheet.draft.cat = el.dataset.k; renderSheet(); },
+  ddLevel(el){ S.sheet.draft.level = el.dataset.k; document.querySelectorAll('[data-act="ddLevel"]').forEach(x => x.setAttribute('aria-pressed', x === el)); },
+  ddMin(el){ const d = S.sheet.draft; d.min = clamp((+d.min || 0) + +el.dataset.d, 1, 180); const i = $('#d-min'); if (i) i.value = d.min; },
+  saveDrill(){ const sh = S.sheet, d = sh.draft;
+    if (!d.title.trim()){ toast('Ge övningen ett namn.'); $('#d-title')?.focus(); return; }
+    const data = {...d, title:d.title.trim(), min:+d.min || 0, ts:d.ts || Date.now(), updated:Date.now()};
+    write('drills', d.id, data); toast(sh.isNew ? 'Övningen är sparad i banken' : 'Övningen är uppdaterad');
+    if (sh.back && S.edit) openSheet({kind:'block', id:sh.back}); else closeSheet();
+    if (S.tab === 'ovningar') render(); },
+  delDrill(){ const d = S.sheet.draft; remove('drills', d.id); closeSheet(); render(); toast('Övningen är borttagen'); },
+  drillToPass(el){ const d = S.drills[el.dataset.id]; if (!d) return;
+    if (S.edit){ const b = blockFromDrill(d); S.edit.blocks.push(b); touchPass(false); if (S.sheet) closeSheet(); toast(`${d.title} lagd i ${S.edit.title}`); return; }
+    openSheet({kind:'pickPass', drillId:d.id}); },
+  pickPassFor(el){ const d = S.drills[S.sheet.drillId]; closeSheet(); openPass(el.dataset.id);
+    if (d && S.edit){ const b = blockFromDrill(d); S.edit.blocks.push(b); S.sel = b.id; touchPass(); scrollToCard(b.id); toast(`${d.title} tillagd`); } },
+  pickPassNew(){ const d = S.drills[S.sheet.drillId]; closeSheet(); const p = newPassObj();
+    if (d) p.blocks.splice(1, 0, blockFromDrill(d)); write('passes', p.id, p); openPass(p.id); },
+  fCat(el){ S.filter.cat = el.dataset.k; render(); },
+  fLevel(el){ S.filter.level = el.dataset.k; render(); },
+  drawSketch(el){ const tgt = el.dataset.target;
+    const src = tgt === 'pass' ? S.edit?.sketchId : tgt === 'block' ? curBlock()?.sketchId : S.sheet?.draft?.sketchId;
+    const sheetRef = S.sheet;
+    openSketch(src, id => {
+      if (tgt === 'pass' && S.edit){ S.edit.sketchId = id; touchPass(false); render(); }
+      else if (tgt === 'block'){ const b = S.edit && S.edit.blocks.find(x => x.id === sheetRef?.id); if (b){ b.sketchId = id; touchPass(); renderSheet(); } }
+      else if (tgt === 'drill' && S.sheet === sheetRef){ S.sheet.draft.sketchId = id; renderSheet(); }
+    }); },
+  rmSketch(el){ const tgt = el.dataset.target;
+    if (tgt === 'pass' && S.edit){ S.edit.sketchId = ''; touchPass(false); render(); }
+    else if (tgt === 'block'){ const b = curBlock(); if (b){ b.sketchId = ''; touchPass(); renderSheet(); } }
+    else if (tgt === 'drill'){ S.sheet.draft.sketchId = ''; renderSheet(); } },
+  share(){ if (!S.edit) return; flushPass(); openSheet({kind:'share', mode:'wa', images:null}); genImages(); },
+  shareMode(el){ S.sheet.mode = el.dataset.m; renderSheet(); },
+  copyText(){ const ta = $('#share-text'); const txt = ta.value;
+    const fallback = () => { ta.focus(); ta.select(); toast('Texten är markerad. Kopiera den med telefonens meny.'); };
+    try { navigator.clipboard.writeText(txt).then(() => toast('Texten är kopierad'), fallback); } catch { fallback(); } },
+  saveImg(el){ const im = S.sheet?.images?.[+el.dataset.i]; if (im) saveFile(im.file, im.blob); },
+  uploadGpx(el){ S.gpxTarget = el && el.dataset.for ? {kind:el.dataset.for, id:S.sheet?.id} : null; $('#gpx-in').value = ''; $('#gpx-in').click(); },
+  openRoute(el){ S.routeId = el.dataset.id; S.poiKind = null; S.movePoi = null; S.confirm = null; render(); window.scrollTo(0, 0); },
+  closeRoute(){ flushRoute(); S.routeId = null; S.poiKind = null; S.movePoi = null; render(); },
+  poiKind(el){ S.poiKind = S.poiKind === el.dataset.k ? null : el.dataset.k; S.movePoi = null; render(); },
+  delPoi(el){ const r = S.routes[S.routeId]; if (!r) return; const pois = [...(r.pois || [])]; pois.splice(+el.dataset.i, 1); S.movePoi = null; saveRoute({pois}, true); },
+  restStep(el){ const b = curBlock(); if (!b) return; b.rest = clamp(restOf(b) + +el.dataset.d, 0, 10); const i = $('#b-rest'); if (i) i.value = b.rest; touchPass(); updateLaps(b); },
+  matAdd(el){ const sc = el.dataset.sc, m = MATK[el.dataset.k]; if (!m) return; const {std, free} = splitMat(matGet(sc)); std[m.k] = m.d; matSet(sc, joinMat(std, free)); renderSheet(); },
+  matStep(el){ const sc = el.dataset.sc, k = el.dataset.k, d = +el.dataset.d; const {std, free} = splitMat(matGet(sc));
+    std[k] = MATK[k]?.one && d < 0 ? 0 : Math.max(0, (std[k] || 0) + d); matSet(sc, joinMat(std, free)); renderSheet(); },
+  delRoute(){ remove('routes', S.routeId); S.routeId = null; S.confirm = null; render(); toast('Banan är borttagen'); },
+  async routeImage(){ const r = S.routes[S.routeId]; if (!r) return; toast('Skapar ruttbild…');
+    const c = await routeImage(r); const blob = await toBlob(c, 'image/png');
+    saveFile(`bana-${slug(r.name)}.png`, blob); }
+};
+function updateLaps(b){
+  const el = $('#b-laps'); const r = b.routeId && S.routes[b.routeId]; if (!el || !r) return;
+  if (!lapMin(r)) return; el.textContent = `${lapsText(b, r)} på ${+b.min || 0} min i ${nf1.format(+r.tempo || 12)} km/h.`;
+}
+
+/* routes: edits are debounced; a pending patch survives incoming snapshots until it is written */
+let routeT, RP = null;
+function saveRoute(patch, rerender){
+  const r = S.routes[S.routeId]; if (!r) return;
+  if (RP && RP.id !== r.id) flushRoute();
+  RP = {id:r.id, patch:{...(RP ? RP.patch : {}), ...patch}};
+  S.routes = {...S.routes, [r.id]: {...r, ...patch}};
+  clearTimeout(routeT); routeT = setTimeout(flushRoute, 600);
+  if (rerender) render();
+}
+function flushRoute(){
+  clearTimeout(routeT); if (!RP) return;
+  const {id, patch} = RP; RP = null; const r = S.routes[id];
+  if (r) write('routes', id, {...r, ...patch});
+}
+function reapplyRoutePatch(){ if (RP && S.routes[RP.id]) S.routes = {...S.routes, [RP.id]: {...S.routes[RP.id], ...RP.patch}}; }
+
+$('#gpx-in').addEventListener('change', async e => {
+  const f = e.target.files[0]; if (!f) return;
+  try {
+    const text = await f.text();
+    const g = parseGPX(text);
+    if (g.pts.length < 2){ toast('Hittade ingen bana i filen. Exportera banan som GPX från Garmin Connect.'); return; }
+    const r = buildRoute(g.pts, g.name || f.name.replace(/\.gpx$/i, ''));
+    const id = uid(); write('routes', id, r);
+    const tg = S.gpxTarget; S.gpxTarget = null;
+    if (tg && tg.kind === 'block' && S.edit){
+      const b = S.edit.blocks.find(x => x.id === tg.id);
+      if (b){ b.routeId = id; touchPass(); if (S.sheet && S.sheet.id === tg.id) renderSheet(); toast(`${r.name} är uppladdad och kopplad till blocket`); return; }
+    }
+    if (tg && tg.kind === 'pass' && S.edit){ S.edit.routeId = id; touchPass(false); render(); toast(`${r.name} är uppladdad och kopplad till passet`); return; }
+    S.tab = 'banor'; S.routeId = id; render(); toast(`${r.name} är uppladdad`);
+  } catch (err){ console.warn(err); toast('Kunde inte läsa filen. Är det en GPX-fil?'); }
+});
+
+/* ---------- events ---------- */
+let suppressClick = false;
+document.addEventListener('click', e => {
+  if (suppressClick){ suppressClick = false; e.preventDefault(); return; }
+  if (e.target.closest('#sk')) return;
+  if (e.target.id === 'route-canvas'){ routeTap(e); return; }
+  const dragEl = e.target.closest('[data-drag]');
+  const el = e.target.closest('[data-act]'); if (!el || el.disabled) return;
+  if (dragEl && el.contains(dragEl)) return;
+  const fn = ACT[el.dataset.act]; if (fn){ e.preventDefault(); fn(el, e); }
+});
+/* Points can sit anywhere: on the route or beside it. Tap a point to pick it up, tap again to drop it. */
+function routeTap(e){
+  if (S.readOnly || !S.routeProj) return;
+  const rt = S.routes[S.routeId]; if (!rt) return;
+  const cv = e.target, rc = cv.getBoundingClientRect(), px = e.clientX - rc.left, py = e.clientY - rc.top;
+  const pr = S.routeProj, ll = () => pr.inv(px, py).map(v => +v.toFixed(6));
+  if (S.poiKind){
+    const [lat, lon] = ll();
+    const pois = [...(rt.pois || []), {lat, lon, kind:S.poiKind, note:''}];
+    S.poiKind = null; saveRoute({pois}, true);
+    requestAnimationFrame(() => { const inputs = document.querySelectorAll('[data-poi]'); inputs[inputs.length - 1]?.focus(); });
+    return;
+  }
+  let hit = -1, hd = 26;
+  (pr.poiXY || []).forEach((q, i) => { if (!q) return; const d = Math.hypot(q[0] - px, q[1] - py); if (d < hd){ hd = d; hit = i; } });
+  if (S.movePoi != null){
+    if (hit === S.movePoi){ S.movePoi = null; render(); return; }
+    const [lat, lon] = ll(), pois = clone(rt.pois || []), pt = pois[S.movePoi];
+    if (pt){ pt.lat = lat; pt.lon = lon; delete pt.i; }
+    S.movePoi = null; saveRoute({pois}, true); toast('Punkten är flyttad'); return;
+  }
+  if (hit >= 0){ S.movePoi = hit; render(); }
+}
+document.addEventListener('input', e => {
+  const t = e.target, v = t.value;
+  if (t.dataset.bind && S.edit){
+    const f = t.dataset.bind;
+    S.edit[f] = f === 'planned' ? (v === '' ? 0 : Math.max(0, parseInt(v, 10) || 0)) : v;
+    touchPass(f === 'planned' || f === 'routeId' || f === 'alt');
+  } else if (t.dataset.bb){
+    const b = curBlock(); if (!b) return; const f = t.dataset.bb;
+    if (f === 'min'){ const n = parseInt(v, 10); if (!isNaN(n)) b.min = clamp(n, 1, 180); updateLaps(b); }
+    else if (f === 'rest'){ const n = parseFloat(String(v).replace(',', '.')); if (!isNaN(n)) b.rest = clamp(n, 0, 10); updateLaps(b); }
+    else if (f === 'rot'){ const n = parseInt(v, 10); if (!isNaN(n)) b.rot = clamp(n, 1, 60); }
+    else b[f] = v;
+    touchPass();
+    if (f === 'routeId') renderSheet();
+  } else if (t.dataset.matfree){
+    let std = {}; try { std = JSON.parse(t.dataset.std || '{}'); } catch {}
+    matSet(t.dataset.matfree, joinMat(std, v));
+  } else if (t.dataset.st != null && t.dataset.i != null){
+    const b = curBlock(); if (!b) return; b.stations[+t.dataset.i][t.dataset.st] = v; touchPass();
+  } else if (t.dataset.dd && S.sheet?.draft){
+    S.sheet.draft[t.dataset.dd] = t.dataset.dd === 'min' ? (parseInt(v, 10) || 0) : v;
+  } else if (t.dataset.filter){
+    if (t.dataset.filter === 'max') S.filter.max = +v || 0; else S.filter.q = v;
+    const l = $('#drill-list'); if (l) l.innerHTML = drillListHTML();
+  } else if (t.dataset.pq && S.sheet){
+    S.sheet.q = v; const b = curBlock(); const sh = S.sheet;
+    const onlyType = !sh.all && !sh.isNew && sh.station == null && b ? b.type : '';
+    $('#pick-list').innerHTML = pickListHTML(filteredDrills({q:v}, onlyType));
+  } else if (t.dataset.rb){
+    const f = t.dataset.rb;
+    if (f === 'tempo'){ const n = parseFloat(String(v).replace(',', '.')); if (n >= 3 && n <= 40){ saveRoute({tempo:n}); const o = $('#lap-out'); if (o) o.textContent = nf1.format(lapMin(S.routes[S.routeId])); } }
+    else saveRoute({[f]: v});
+  } else if (t.dataset.poi != null){
+    const r = S.routes[S.routeId]; if (!r) return; const pois = clone(r.pois || []); pois[+t.dataset.poi].note = v; saveRoute({pois});
+  }
+});
+
+/* drag: reorder blocks, resize from the strip, swipe sheet down */
+document.addEventListener('pointerdown', e => {
+  const card = e.target.closest('.bcard');
+  if (card && !e.target.closest('[data-drag]') && !S.readOnly && S.edit && e.button === 0) startSwipe(card, e);
+  const h = e.target.closest('[data-drag]'); if (!h || S.readOnly && h.dataset.drag !== 'sheet') return;
+  if (h.dataset.drag === 'reorder') startReorder(h, e);
+  else if (h.dataset.drag === 'resize') startResize(h, e);
+  else if (h.dataset.drag === 'sheet') startSheetSwipe(h, e);
+});
+function track(e, move, up){
+  const id = e.pointerId;
+  const mv = ev => { if (ev.pointerId === id) move(ev); };
+  const end = ev => { if (ev.pointerId !== id) return; window.removeEventListener('pointermove', mv); window.removeEventListener('pointerup', end); window.removeEventListener('pointercancel', end); up(ev); };
+  window.addEventListener('pointermove', mv); window.addEventListener('pointerup', end); window.addEventListener('pointercancel', end);
+}
+function startReorder(h, e){
+  e.preventDefault();
+  const card = h.closest('.bwrap'), list = card.parentNode;
+  try { h.setPointerCapture(e.pointerId); } catch {}
+  const startY = e.clientY, startNat = card.getBoundingClientRect().top;
+  let moved = false;
+  card.classList.add('dragging'); card.querySelector('.bcard').classList.add('dragging');
+  track(e, ev => {
+    const y = ev.clientY; if (Math.abs(y - startY) > 4) moved = true;
+    let changed = true;
+    while (changed){
+      changed = false;
+      const next = card.nextElementSibling, prev = card.previousElementSibling;
+      if (next && next.classList.contains('bwrap')){ const r = next.getBoundingClientRect(); if (y > r.top + r.height / 2){ list.insertBefore(next, card); changed = true; continue; } }
+      if (prev && prev.classList.contains('bwrap')){ const r = prev.getBoundingClientRect(); if (y < r.top + r.height / 2){ card.after(prev); changed = true; } }
+    }
+    card.style.transform = ''; const nat = card.getBoundingClientRect().top;
+    card.style.transform = `translateY(${startNat + (y - startY) - nat}px)`;
+    if (y > innerHeight - 170) window.scrollBy(0, 10); else if (y < 90) window.scrollBy(0, -10);
+  }, () => {
+    card.classList.remove('dragging'); card.querySelector('.bcard')?.classList.remove('dragging'); card.style.transform = '';
+    if (!moved) return;
+    suppressClick = true; setTimeout(() => suppressClick = false, 350);
+    const order = [...list.querySelectorAll('.bwrap')].map(c => c.dataset.id);
+    const map = new Map(S.edit.blocks.map(b => [b.id, b]));
+    S.edit.blocks = order.map(id => map.get(id)).filter(Boolean);
+    touchPass();
+  });
+}
+function startSwipe(card, e){
+  const x0 = e.clientX, y0 = e.clientY, bg = card.parentNode.querySelector('.bdel');
+  let mode = null, dx = 0;
+  track(e, ev => {
+    const mx = ev.clientX - x0, my = ev.clientY - y0;
+    if (!mode){ if (Math.abs(mx) > 10 && Math.abs(mx) > Math.abs(my) * 1.3) mode = 'swipe'; else if (Math.abs(my) > 10) mode = 'scroll'; else return; }
+    if (mode !== 'swipe') return;
+    dx = Math.max(0, mx);
+    card.classList.add('swiping'); card.style.transform = `translateX(${dx}px)`;
+    if (bg) bg.style.opacity = Math.min(1, dx / 80);
+  }, () => {
+    if (mode !== 'swipe') return;
+    suppressClick = true; setTimeout(() => suppressClick = false, 350);
+    card.classList.remove('swiping');
+    const w = card.getBoundingClientRect().width;
+    if (dx > Math.min(130, w * .4)){
+      card.classList.add('back'); card.style.transform = `translateX(${w}px)`;
+      setTimeout(() => removeBlock(card.dataset.id), 180);
+    } else {
+      card.classList.add('back'); card.style.transform = ''; if (bg) bg.style.opacity = 0;
+      setTimeout(() => card.classList.remove('back'), 220);
+    }
+  });
+}
+function removeBlock(id){
+  if (!S.edit) return;
+  const i = S.edit.blocks.findIndex(b => b.id === id); if (i < 0) return;
+  const [b] = S.edit.blocks.splice(i, 1);
+  const passId = S.edit.id;
+  if (S.sel === id) S.sel = null;
+  S.swipeHintSeen = true;
+  touchPass();
+  toast(`${blockTitle(b)} är borttaget`, 'Ångra', () => {
+    if (!S.edit || S.edit.id !== passId) return;
+    S.edit.blocks.splice(Math.min(i, S.edit.blocks.length), 0, b); S.sel = b.id; touchPass(); scrollToCard(b.id);
+  });
+}
+function startResize(h, e){
+  e.preventDefault(); e.stopPropagation();
+  const seg = h.closest('.seg'), strip = seg.parentNode, b = S.edit.blocks.find(x => x.id === h.dataset.id); if (!b) return;
+  try { h.setPointerCapture(e.pointerId); } catch {}
+  const scale = Math.max(total(S.edit), +S.edit.planned || 0, 1), ppm = strip.getBoundingClientRect().width / scale;
+  const start = +b.min || 1, x0 = e.clientX;
+  let tip = document.createElement('span'); tip.className = 'tip'; tip.textContent = `${start} min`; seg.appendChild(tip);
+  track(e, ev => {
+    const nm = clamp(Math.round(start + (ev.clientX - x0) / ppm), 1, 180);
+    if (nm === b.min) return;
+    b.min = nm; seg.style.flexBasis = (nm / scale * 100) + '%'; tip.textContent = `${nm} min`;
+    $('#ed-total').innerHTML = totalHTML(S.edit);
+  }, () => { suppressClick = true; setTimeout(() => suppressClick = false, 350); touchPass(); });
+}
+function startSheetSwipe(h, e){
+  const sheet = h.closest('.sheet'), y0 = e.clientY; let dy = 0;
+  try { h.setPointerCapture(e.pointerId); } catch {}
+  track(e, ev => { dy = Math.max(0, ev.clientY - y0); sheet.style.transform = `translateY(${dy}px)`; },
+    () => { if (dy > 90) closeSheet(); else sheet.style.transform = ''; });
+}
+function updEnd(el){ if (el) el.classList.toggle('end', el.scrollLeft + el.clientWidth >= el.scrollWidth - 4); }
+document.addEventListener('scroll', e => { const t = e.target; if (t && t.classList && (t.classList.contains('palette') || t.classList.contains('hscroll'))) updEnd(t); }, true);
+document.addEventListener('pointerdown', e => {
+  if (e.pointerType !== 'mouse') return;
+  const el = e.target.closest('.palette, .hscroll'); if (!el) return;
+  const x0 = e.clientX, s0 = el.scrollLeft; let moved = false;
+  track(e, ev => { const dx = ev.clientX - x0; if (Math.abs(dx) > 5) moved = true; if (moved) el.scrollLeft = s0 - dx; },
+    () => { if (moved){ suppressClick = true; setTimeout(() => suppressClick = false, 300); } });
+});
+document.addEventListener('wheel', e => {
+  const el = e.target.closest && e.target.closest('.palette, .hscroll'); if (!el || Math.abs(e.deltaX) > Math.abs(e.deltaY)) return;
+  el.scrollLeft += e.deltaY; e.preventDefault();
+}, {passive:false});
+window.addEventListener('resize', () => updEnd($('#palette')));
+document.addEventListener('toggle', e => { if (e.target.id === 'p-more') S.moreOpen = e.target.open; }, true);
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape'){ if (SK.open){ SK.open = false; renderSketch(); } else if (S.sheet) closeSheet(); }
+});
+window.addEventListener('pagehide', () => { flushPass(); flushRoute(); });
+document.addEventListener('visibilitychange', () => { if (document.hidden){ flushPass(); flushRoute(); } });
+
+applyMode();
+/* ---------- Firebase: login, data per account, import/export, delete account ---------- */
+const CFG = window.STIGPASS_CONFIG || {};
+const COLS = ['drills','passes','routes','sketches'];
+let FBX = null, unsubs = [];
+
+function encodeDoc(col, doc){
+  const d = JSON.parse(JSON.stringify(doc));
+  // Firestore can't store arrays inside arrays, so route points are kept as one flat list
+  if (col === 'routes' && Array.isArray(d.pts)){ d.ptsF = d.pts.flatMap(p => [p[0], p[1], p[2] == null ? null : p[2]]); delete d.pts; }
+  return d;
+}
+function decodeDoc(col, d){
+  if (col === 'routes' && Array.isArray(d.ptsF)){
+    const pts = []; for (let i = 0; i + 2 < d.ptsF.length; i += 3) pts.push([d.ptsF[i], d.ptsF[i+1], d.ptsF[i+2]]);
+    d = {...d, pts}; delete d.ptsF;
+  }
+  return d;
+}
+function fsAdapter(fs, uid){
+  return {
+    collection(col){
+      const ref = FB.collection(fs, 'users', uid, col);
+      return {
+        onSnapshot(next, err){
+          return FB.onSnapshot(ref, snap => next({docs: snap.docs.map(d => ({id:d.id, data:() => decodeDoc(col, d.data())}))}), err);
+        },
+        doc(id){
+          const dref = FB.doc(fs, 'users', uid, col, id);
+          return { set: data => FB.setDoc(dref, encodeDoc(col, data)), delete: () => FB.deleteDoc(dref) };
+        }
+      };
+    }
+  };
+}
+function bootFirebase(){
+  const c = CFG.firebase || {};
+  if (!window.FB || !c.apiKey || !c.projectId){ S.cfgMissing = true; S.authReady = true; render(); return; }
+  try {
+    const app = FB.initializeApp(c);
+    const auth = FB.getAuth(app); auth.languageCode = 'sv';
+    let fs;
+    try { fs = FB.initializeFirestore(app, {localCache: FB.persistentLocalCache({tabManager: FB.persistentMultipleTabManager()})}); }
+    catch { fs = FB.initializeFirestore(app, {}); }
+    if (CFG.emulator){ FB.connectAuthEmulator(auth, 'http://127.0.0.1:9099', {disableWarnings:true}); FB.connectFirestoreEmulator(fs, '127.0.0.1', 8080); }
+    FBX = {app, auth, fs};
+    FB.onAuthStateChanged(auth, u => onUser(u));
+  } catch (e){ console.error(e); S.cfgMissing = true; S.cfgError = true; S.authReady = true; render(); }
+}
+function stopData(){ unsubs.forEach(u => { try { u(); } catch {} }); unsubs = []; S.db = null; }
+function resetData(){
+  S.drills = {}; S.passes = {}; S.routes = {}; S.sketches = {};
+  for (const k in S.loaded) S.loaded[k] = false;
+  S.edit = null; S.sel = null; S.routeId = null; S.denied = false; S.tab = 'pass';
+  if (S.sheet){ S.sheet = null; renderSheet(); }
+}
+function onUser(u){
+  stopData(); resetData();
+  S.authReady = true;
+  if (!u){ S.user = null; render(); return; }
+  S.user = {uid:u.uid, email:u.email || '', name:u.displayName || '', password:u.providerData.some(p => p.providerId === 'password'), verified:!!u.emailVerified};
+  S.authMsg = '';
+  if (S.user.password && !u.emailVerified){ render(); return; }
+  startData();
+}
+function startData(){
+  S.db = fsAdapter(FBX.fs, S.user.uid);
+  for (const col of COLS){
+    unsubs.push(S.db.collection(col).onSnapshot(snap => {
+      const m = {}; snap.docs.forEach(d => { m[d.id] = {...d.data(), id:d.id}; });
+      S[col] = m; S.loaded[col] = true; onData(col);
+    }, err => {
+      console.warn(col, err);
+      if (err && err.code === 'permission-denied'){ S.denied = true; stopData(); }
+      S.loaded[col] = true; render();
+    }));
+  }
+  render();
+}
+const authErr = e => {
+  const c = (e && e.code) || '';
+  if (c.includes('popup-closed') || c.includes('cancelled-popup')) return '';
+  if (c.includes('popup-blocked')) return 'Webbläsaren stoppade inloggningsfönstret. Tillåt popup-fönster för sidan och försök igen.';
+  if (c.includes('unauthorized-domain')) return 'Den här webbadressen är inte godkänd i Firebase. Lägg till den under Authentication → Settings → Authorized domains.';
+  if (c.includes('invalid-credential') || c.includes('wrong-password') || c.includes('user-not-found')) return 'Fel e-post eller lösenord.';
+  if (c.includes('email-already-in-use')) return 'Det finns redan ett konto med den e-postadressen. Logga in i stället.';
+  if (c.includes('weak-password')) return 'Lösenordet måste ha minst 6 tecken.';
+  if (c.includes('invalid-email')) return 'E-postadressen ser inte rätt ut.';
+  if (c.includes('operation-not-allowed')) return 'Den inloggningsmetoden är inte påslagen i Firebase.';
+  if (c.includes('network')) return 'Ingen kontakt med nätet. Försök igen när du har täckning.';
+  if (c.includes('too-many-requests')) return 'För många försök. Vänta en stund och försök igen.';
+  return 'Inloggningen misslyckades. Försök igen.';
+};
+function setAuthMsg(m){ S.authMsg = m; const el = $('#auth-msg'); if (el){ el.textContent = m; el.hidden = !m; } else render(); }
+
+function loginHTML(){
+  if (!S.authReady) return `<section class="login"><p class="hint">Startar…</p></section>`;
+  const hero = `<div class="login-hero"><div class="login-bars" aria-hidden="true"><i class="t-samling" style="height:30%"></i><i class="t-uppvarmning" style="height:55%"></i><i class="t-teknik" style="height:70%"></i><i class="t-lek" style="height:50%"></i><i class="t-loop" style="height:100%"></i><i class="t-stafett" style="height:85%"></i><i class="t-avslutning" style="height:30%"></i></div>
+    <h1>Stigpass</h1><p>Planera träningspass, spara övningar och banor, och dela dagens pass med ledarna.</p></div>`;
+  if (S.cfgMissing) return `<section class="login">${hero}<p class="banner">${S.cfgError ? 'Inställningarna i config.js går inte att läsa. Kontrollera att du klistrat in värdena från Firebase rätt.' : 'Appen är inte kopplad till Firebase ännu. Fyll i config.js enligt guiden.'}</p></section>`;
+  if (S.user && S.user.password && !S.user.verified) return `<section class="login">${hero}
+    <p class="banner">Vi har skickat ett mejl till <b>${esc(S.user.email)}</b>. Klicka på länken i mejlet och tryck sedan på knappen här.</p>
+    <button class="btn primary" data-act="checkVerified">Jag har bekräftat</button>
+    <div class="actions"><button class="btn" data-act="resendVerify">Skicka mejlet igen</button><button class="btn ghost" data-act="logout">Logga ut</button></div>
+    <p class="banner" id="auth-msg" ${S.authMsg ? '' : 'hidden'}>${esc(S.authMsg)}</p></section>`;
+  if (S.user && S.denied) return `<section class="login">${hero}
+    <p class="banner">Kontot <b>${esc(S.user.email)}</b> har inte tillgång till appen ännu. Ägaren behöver lägga till e-postadressen i Firebase.</p>
+    <button class="btn" data-act="logout">Logga ut</button></section>`;
+  return `<section class="login">${hero}
+    <button class="btn primary big" data-act="loginGoogle">Logga in med Google</button>
+    <p class="or"><span>eller med e-post</span></p>
+    <form id="login-form" class="login-form" novalidate>
+      <input id="l-email" class="field" type="email" autocomplete="email" placeholder="E-post" aria-label="E-post">
+      <input id="l-pass" class="field" type="password" autocomplete="current-password" placeholder="Lösenord, minst 6 tecken" aria-label="Lösenord">
+      <div class="actions"><button class="btn primary" type="submit">Logga in</button><button class="btn" type="button" data-act="signup">Skapa konto</button><button class="btn ghost small" type="button" data-act="resetPw">Glömt lösenordet?</button></div>
+    </form>
+    <p class="banner" id="auth-msg" ${S.authMsg ? '' : 'hidden'}>${esc(S.authMsg)}</p>
+    <p><button class="linkbtn" data-act="privacy">Om appen och integritet</button></p></section>`;
+}
+function privacyHTML(){
+  const owner = CFG.owner ? esc(CFG.owner) : 'Den som driver appen';
+  return `<header class="sh-head"><h2>Integritet</h2><button class="icon-btn" data-act="closeSheet" aria-label="Stäng">✕</button></header>
+  <div class="prose">
+  <p><b>Stigpass</b> är ett verktyg för att planera cykelträning. ${owner} ansvarar för appen och för uppgifterna som sparas i den.${CFG.contact ? ` Kontakt: <span class="sel">${esc(CFG.contact)}</span>.` : ''}</p>
+  <h3>Vad som sparas</h3><p>När du loggar in sparas din e-postadress, ditt namn om du loggar in med Google, och ett användar-id. Det du själv lägger in sparas också: pass, övningar, banor och skisser. Varje konto har ett eget utrymme som bara det kontot kan läsa.</p>
+  <p>Skriv inga uppgifter om barn, som namn eller hälsa, och använd inte bilder där personer går att känna igen.</p>
+  <h3>Varför</h3><p>För att appen ska fungera och visa samma pass på alla dina enheter. Appen har ingen spårning, statistik eller reklam.</p>
+  <h3>Var</h3><p>Uppgifterna sparas i Google Firebase. Databasen med passen ligger i EU. Inloggningen sköts av Google och kan behandlas utanför EU enligt Googles villkor för Firebase.</p>
+  <h3>Hur länge</h3><p>Tills du raderar ditt konto. Du gör det själv under Konto → Radera konto, och då tas all din data bort.</p>
+  <h3>Dina rättigheter</h3><p>Du har rätt att få veta vilka uppgifter som finns om dig och att få dem rättade eller raderade. Hör av dig till kontakten ovan. Du kan också vända dig till Integritetsskyddsmyndigheten (IMY).</p>
+  <h3>Lagring i enheten</h3><p>Appen sparar inloggningen och en kopia av din data i webbläsaren, så att den fungerar utan nät. Det behövs för att appen ska fungera, så inget samtycke krävs. Inga kakor för spårning används.</p>
+  </div>`;
+}
+function accountHTML(){
+  const n = {p:Object.keys(S.passes).length, d:Object.keys(S.drills).length, r:Object.keys(S.routes).length, s:Object.keys(S.sketches).length};
+  return `<header class="sh-head"><h2>Konto</h2><button class="icon-btn" data-act="closeSheet" aria-label="Stäng">✕</button></header>
+  <p>Inloggad som <b>${esc(S.user?.email || '')}</b></p>
+  <p class="hint" style="margin:0">${n.p} pass · ${n.d} övningar · ${n.r} banor · ${n.s} skisser</p>
+  <div class="stack">
+    <button class="btn" data-act="exportData">Spara säkerhetskopia</button>
+    <label class="btn">Importera från fil<input type="file" id="import-in" accept=".json,application/json" hidden></label>
+    <button class="btn" data-act="privacy">Om appen och integritet</button>
+    <button class="btn" data-act="logout">Logga ut</button>
+  </div>
+  <details class="more" ${S.sheet.confirm === 'del' || S.sheet.busy ? 'open' : ''}><summary>Radera konto</summary><div class="more-body">
+    <p>Allt du har sparat tas bort för gott: pass, övningar, banor, skisser och själva kontot. Spara gärna en säkerhetskopia först.</p>
+    ${S.sheet.busy ? '<p class="hint">Raderar…</p>' : sh_confirm('del')
+      ? `<span class="confirm">Är du säker? <button class="btn small danger" data-act="deleteAccount">Radera allt</button><button class="btn small" data-act="sheetConfirm" data-v="">Avbryt</button></span>`
+      : `<button class="btn danger" data-act="sheetConfirm" data-v="del">Radera mitt konto och all min data</button>`}
+  </div></details>`;
+}
+Object.assign(ACT, {
+  account(){ openSheet({kind:'account'}); },
+  privacy(){ openSheet({kind:'privacy'}); },
+  async loginGoogle(){
+    if (!FBX) return; setAuthMsg('');
+    try { await FB.signInWithPopup(FBX.auth, new FB.GoogleAuthProvider()); }
+    catch (e){ console.warn(e); setAuthMsg(authErr(e)); }
+  },
+  async signup(){
+    const em = $('#l-email')?.value.trim(), pw = $('#l-pass')?.value || '';
+    if (!em || pw.length < 6){ setAuthMsg('Fyll i e-post och ett lösenord med minst 6 tecken.'); return; }
+    try { const cr = await FB.createUserWithEmailAndPassword(FBX.auth, em, pw); await FB.sendEmailVerification(cr.user); }
+    catch (e){ setAuthMsg(authErr(e)); }
+  },
+  async resetPw(){
+    const em = $('#l-email')?.value.trim();
+    if (!em){ setAuthMsg('Skriv din e-postadress först.'); return; }
+    try { await FB.sendPasswordResetEmail(FBX.auth, em); setAuthMsg('Vi har skickat ett mejl med en länk för att välja nytt lösenord.'); }
+    catch (e){ setAuthMsg(authErr(e)); }
+  },
+  async checkVerified(){
+    const u = FBX?.auth.currentUser; if (!u) return;
+    try { await FB.reload(u); await u.getIdToken(true); } catch {}
+    if (u.emailVerified){ S.user.verified = true; S.authMsg = ''; startData(); }
+    else setAuthMsg('E-postadressen är inte bekräftad än. Kolla skräpposten om mejlet inte syns.');
+  },
+  async resendVerify(){
+    const u = FBX?.auth.currentUser; if (!u) return;
+    try { await FB.sendEmailVerification(u); setAuthMsg('Mejlet är skickat igen.'); } catch (e){ setAuthMsg(authErr(e)); }
+  },
+  async logout(){ flushPass(); flushRoute(); closeSheet(); try { await FB.signOut(FBX.auth); } catch {} },
+  exportData(){
+    const out = {app:'stigpass', version:1, exported:new Date().toISOString()};
+    for (const col of COLS){ out[col] = {}; for (const [id, d] of Object.entries(S[col])){ const c = {...d}; delete c.id; out[col][id] = c; } }
+    const blob = new Blob([JSON.stringify(out)], {type:'application/json'});
+    saveFile(`stigpass-sakerhetskopia-${today()}.json`, blob, false);
+  },
+  async deleteAccount(){
+    const u = FBX?.auth.currentUser; if (!u || !S.sheet) return;
+    S.sheet.busy = true; renderSheet();
+    try {
+      const jobs = [];
+      for (const col of COLS) for (const id of Object.keys(S[col])) jobs.push(FB.deleteDoc(FB.doc(FBX.fs, 'users', u.uid, col, id)));
+      await Promise.all(jobs);
+      stopData();
+      try { await FB.deleteUser(u); }
+      catch (e){
+        if (String(e.code).includes('requires-recent-login') && !S.user.password){
+          await FB.reauthenticateWithPopup(u, new FB.GoogleAuthProvider()); await FB.deleteUser(u);
+        } else throw e;
+      }
+      closeSheet(); toast('Kontot och all data är raderade');
+    } catch (e){
+      console.warn(e);
+      if (S.sheet){ S.sheet.busy = false; renderSheet(); }
+      toast(String(e && e.code).includes('requires-recent-login') ? 'Datan är raderad. Logga ut och in igen, och radera sedan kontot på nytt.' : 'Det gick inte att radera allt. Kontrollera nätet och försök igen.');
+    }
+  },
+  shareText(){
+    const txt = $('#share-text')?.value || '';
+    if (navigator.share) navigator.share({text:txt}).catch(() => {});
+  },
+  async shareAll(){
+    const imgs = S.sheet?.images || [];
+    const files = imgs.map(im => new File([im.blob], im.file, {type:im.blob.type}));
+    try { await navigator.share({files}); } catch (e){ if (!e || e.name !== 'AbortError') toast('Det gick inte att dela alla på en gång. Dela bilderna en och en.'); }
+  },
+  dlImg(el){ const im = S.sheet?.images?.[+el.dataset.i]; if (im) saveFile(im.file, im.blob, false); }
+});
+document.addEventListener('submit', e => {
+  if (e.target.id !== 'login-form') return;
+  e.preventDefault();
+  const em = $('#l-email')?.value.trim(), pw = $('#l-pass')?.value || '';
+  if (!em || !pw){ setAuthMsg('Fyll i e-post och lösenord.'); return; }
+  FB.signInWithEmailAndPassword(FBX.auth, em, pw).catch(err => setAuthMsg(authErr(err)));
+});
+document.addEventListener('change', async e => {
+  if (e.target.id !== 'import-in' || !e.target.files[0]) return;
+  try {
+    const data = JSON.parse(await e.target.files[0].text());
+    if (!data || data.app !== 'stigpass'){ toast('Filen är ingen Stigpass-fil.'); return; }
+    const n = {};
+    for (const col of COLS){ n[col] = 0; for (const [id, d] of Object.entries(data[col] || {})){ if (d && typeof d === 'object'){ write(col, id, d); n[col]++; } } }
+    closeSheet(); render();
+    const pl = (k, one, many) => `${n[k]} ${n[k] === 1 ? one : many}`;
+    toast(`Importerade ${pl('passes', 'pass', 'pass')}, ${pl('drills', 'övning', 'övningar')}, ${pl('routes', 'bana', 'banor')} och ${pl('sketches', 'skiss', 'skisser')}`);
+  } catch (err){ console.warn(err); toast('Kunde inte läsa filen.'); }
+});
+window.addEventListener('online', () => render());
+window.addEventListener('offline', () => render());
+if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js').catch(() => {});
+bootFirebase();
+
+render();
+</script>
+
+</body>
+</html>
